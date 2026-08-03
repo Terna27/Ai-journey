@@ -37,9 +37,10 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /notes", noteHandler.CreateNote)
-	mux.HandleFunc("GET /notes", noteHandler.ListNotes)
+	mux.HandleFunc("GET /notes", noteHandler.GetAllNotes)
 	mux.HandleFunc("GET /notes/{id}", noteHandler.GetNote)
 	mux.HandleFunc("PUT /notes/{id}", noteHandler.UpdateNote)
+	mux.HandleFunc("PATCH /notes/{id}", noteHandler.PatchNote)
 	mux.HandleFunc("DELETE /notes/{id}", noteHandler.DeleteNote)
 
 	port := os.Getenv("PORT")
