@@ -20,7 +20,6 @@ func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 
 	err = h.Repo.Delete(r.Context(), id)
 	if err != nil {
-
 		if errors.Is(err, pgx.ErrNoRows) {
 			http.Error(w, "note not found", http.StatusNotFound)
 			return

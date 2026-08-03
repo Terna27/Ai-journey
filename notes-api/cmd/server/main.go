@@ -11,6 +11,7 @@ import (
 	"notes-Api/internal/repository"
 
 	"github.com/joho/godotenv"
+	"notes-Api/internal/middleware"
 )
 
 func main() {
@@ -36,6 +37,8 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	handler := middleware.APIKey(mux)
+
 	mux.HandleFunc("POST /notes", noteHandler.CreateNote)
 	mux.HandleFunc("GET /notes", noteHandler.GetAllNotes)
 	mux.HandleFunc("GET /notes/{id}", noteHandler.GetNote)
@@ -50,7 +53,7 @@ func main() {
 
 	log.Printf("Server running on http://localhost:%s", port)
 
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }
