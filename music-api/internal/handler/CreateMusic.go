@@ -2,10 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
-	"strings"
 
-	"music-api/internal/models"
+	"music-api/internal/service"
 )
 
 func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
@@ -18,30 +18,17 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(req.ArtistName) == "" {
-		http.Error(w, "artist name cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.SongTitle) == "" {
-		http.Error(w, "song title cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.Genre) == "" {
-		http.Error(w, "genre cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	music := models.Music{
-		ArtistName: strings.TrimSpace(req.ArtistName),
-		SongTitle:  strings.TrimSpace(req.SongTitle),
-		Genre:      strings.TrimSpace(req.Genre),
-		ImageURL:   strings.TrimSpace(req.ImageURL),
-	}
-
-	createdMusic, err := h.Repo.Create(r.Context(), music)
+	createdMusic, err := h.Service.CreateMusic(r.Context(), service.CreateMusicInput{
+		ArtistName: req.ArtistName,
+		SongTitle:  req.SongTitle,
+		Genre:      req.Genre,
+		ImageURL:   req.ImageURL,
+	})
 	if err != nil {
+		if isValidationError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "failed to create music post", http.StatusInternalServerError)
 		return
 	}
@@ -53,5 +40,12 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
+}
 
+// isValidationError reports whether err is one of the service's field-level
+// validation errors, which map to 400 Bad Request.
+func isValidationError(err error) bool {
+	return errors.Is(err, service.ErrArtistNameRequired) ||
+		errors.Is(err, service.ErrSongTitleRequired) ||
+		errors.Is(err, service.ErrGenreRequired)
 }

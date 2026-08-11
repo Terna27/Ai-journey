@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jackc/pgx/v5"
+	"music-api/internal/service"
 )
 
 func (h *MusicHandler) DeleteMusic(w http.ResponseWriter, r *http.Request) {
@@ -18,9 +18,9 @@ func (h *MusicHandler) DeleteMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.Delete(r.Context(), id)
+	err = h.Service.DeleteMusic(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, service.ErrMusicNotFound) {
 			http.Error(w, "music post not found", http.StatusNotFound)
 			return
 		}

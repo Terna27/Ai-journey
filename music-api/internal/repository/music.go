@@ -14,6 +14,10 @@ type MusicRepository struct {
 	DB *pgxpool.Pool
 }
 
+// ErrAlreadyLiked is returned by RecordLike when the caller has already liked
+// the given music post. Callers use errors.Is to detect it.
+var ErrAlreadyLiked = errors.New("music already liked by this caller")
+
 func NewMusicRepository(db *pgxpool.Pool) *MusicRepository {
 	return &MusicRepository{
 		DB: db,
@@ -277,8 +281,49 @@ func (r *MusicRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (r *MusicRepository) Like(ctx context.Context, id int) (models.Music, error) {
+// RecordLike registers a like for musicID from likerID and returns the updated
+// music post. It enforces "one like per caller": a second like from the same
+// likerID returns ErrAlreadyLiked and does not change the count. The whole
+// operation runs in a transaction so the uniqueness check and the counter
+// increment cannot diverge under concurrency.
+func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID string) (models.Music, error) {
 
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return models.Music{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Confirm the post exists first, so a missing post is a clean not-found
+	// rather than a foreign-key violation surfacing as a 500.
+	var exists int
+	err = tx.QueryRow(ctx, `SELECT id FROM music WHERE id = $1`, musicID).Scan(&exists)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Music{}, pgx.ErrNoRows
+		}
+		return models.Music{}, err
+	}
+
+	// Insert the like. ON CONFLICT DO NOTHING relies on the (music_id,
+	// liker_id) primary key: a duplicate inserts zero rows.
+	result, err := tx.Exec(
+		ctx,
+		`INSERT INTO music_likes (music_id, liker_id)
+		 VALUES ($1, $2)
+		 ON CONFLICT DO NOTHING`,
+		musicID,
+		likerID,
+	)
+	if err != nil {
+		return models.Music{}, err
+	}
+
+	if result.RowsAffected() == 0 {
+		return models.Music{}, ErrAlreadyLiked
+	}
+
+	// First like from this caller: bump the denormalized counter.
 	query := `
 		UPDATE music
 		SET likes = likes + 1
@@ -297,11 +342,7 @@ func (r *MusicRepository) Like(ctx context.Context, id int) (models.Music, error
 
 	var music models.Music
 
-	err := r.DB.QueryRow(
-		ctx,
-		query,
-		id,
-	).Scan(
+	err = tx.QueryRow(ctx, query, musicID).Scan(
 		&music.ID,
 		&music.ArtistName,
 		&music.SongTitle,
@@ -312,12 +353,11 @@ func (r *MusicRepository) Like(ctx context.Context, id int) (models.Music, error
 		&music.Rating,
 		&music.DatePosted,
 	)
-
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Music{}, pgx.ErrNoRows
-		}
+		return models.Music{}, err
+	}
 
+	if err := tx.Commit(ctx); err != nil {
 		return models.Music{}, err
 	}
 

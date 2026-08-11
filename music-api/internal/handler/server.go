@@ -1,13 +1,13 @@
 package handler
 
-import "music-api/internal/repository"
+import "music-api/internal/service"
 
 type MusicHandler struct {
-	Repo *repository.MusicRepository
+	Service *service.MusicService
 }
 
-func NewMusicHandler(repo *repository.MusicRepository) *MusicHandler {
+func NewMusicHandler(svc *service.MusicService) *MusicHandler {
 	return &MusicHandler{
-		Repo: repo,
+		Service: svc,
 	}
 }

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 
-	"github.com/jackc/pgx/v5"
+	"music-api/internal/service"
 )
 
 func (h *MusicHandler) PatchMusic(w http.ResponseWriter, r *http.Request) {
@@ -28,62 +27,21 @@ func (h *MusicHandler) PatchMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	music, err := h.Repo.GetByID(r.Context(), id)
+	updatedMusic, err := h.Service.PatchMusic(r.Context(), id, service.UpdateMusicInput{
+		ArtistName: req.ArtistName,
+		SongTitle:  req.SongTitle,
+		Genre:      req.Genre,
+		ImageURL:   req.ImageURL,
+	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		switch {
+		case isValidationError(err):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, service.ErrMusicNotFound):
 			http.Error(w, "music post not found", http.StatusNotFound)
-			return
+		default:
+			http.Error(w, "failed to update music post", http.StatusInternalServerError)
 		}
-
-		http.Error(w, "failed to get music post", http.StatusInternalServerError)
-		return
-	}
-
-	if req.ArtistName != nil {
-		artistName := strings.TrimSpace(*req.ArtistName)
-
-		if artistName == "" {
-			http.Error(w, "artist name cannot be empty", http.StatusBadRequest)
-			return
-		}
-
-		music.ArtistName = artistName
-	}
-
-	if req.SongTitle != nil {
-		songTitle := strings.TrimSpace(*req.SongTitle)
-
-		if songTitle == "" {
-			http.Error(w, "song title cannot be empty", http.StatusBadRequest)
-			return
-		}
-
-		music.SongTitle = songTitle
-	}
-
-	if req.Genre != nil {
-		genre := strings.TrimSpace(*req.Genre)
-
-		if genre == "" {
-			http.Error(w, "genre cannot be empty", http.StatusBadRequest)
-			return
-		}
-
-		music.Genre = genre
-	}
-
-	if req.ImageURL != nil {
-		music.ImageURL = strings.TrimSpace(*req.ImageURL)
-	}
-
-	updatedMusic, err := h.Repo.Update(r.Context(), id, music)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			http.Error(w, "music post not found", http.StatusNotFound)
-			return
-		}
-
-		http.Error(w, "failed to update music post", http.StatusInternalServerError)
 		return
 	}
 
@@ -93,5 +51,4 @@ func (h *MusicHandler) PatchMusic(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
 }

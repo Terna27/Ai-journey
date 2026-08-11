@@ -5,11 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 
-	"music-api/internal/models"
-
-	"github.com/jackc/pgx/v5"
+	"music-api/internal/service"
 )
 
 func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
@@ -30,36 +27,21 @@ func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(req.ArtistName) == "" {
-		http.Error(w, "artist name cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.SongTitle) == "" {
-		http.Error(w, "song title cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.Genre) == "" {
-		http.Error(w, "genre cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	music := models.Music{
-		ArtistName: strings.TrimSpace(req.ArtistName),
-		SongTitle:  strings.TrimSpace(req.SongTitle),
-		Genre:      strings.TrimSpace(req.Genre),
-		ImageURL:   strings.TrimSpace(req.ImageURL),
-	}
-
-	updatedMusic, err := h.Repo.Update(r.Context(), id, music)
+	updatedMusic, err := h.Service.UpdateMusic(r.Context(), id, service.CreateMusicInput{
+		ArtistName: req.ArtistName,
+		SongTitle:  req.SongTitle,
+		Genre:      req.Genre,
+		ImageURL:   req.ImageURL,
+	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		switch {
+		case isValidationError(err):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, service.ErrMusicNotFound):
 			http.Error(w, "music post not found", http.StatusNotFound)
-			return
+		default:
+			http.Error(w, "failed to update music post", http.StatusInternalServerError)
 		}
-
-		http.Error(w, "failed to update music post", http.StatusInternalServerError)
 		return
 	}
 
@@ -69,5 +51,4 @@ func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
 }

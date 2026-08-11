@@ -43,7 +43,7 @@ func (h *MusicHandler) GetAllMusic(w http.ResponseWriter, r *http.Request) {
 		limit = parsedLimit
 	}
 
-	musicList, err := h.Repo.GetAll(
+	musicList, err := h.Service.ListMusic(
 		r.Context(),
 		search,
 		genre,
@@ -54,7 +54,7 @@ func (h *MusicHandler) GetAllMusic(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(
 			w,
-			"failed to get music posts: "+err.Error(),
+			"failed to get music posts",
 			http.StatusInternalServerError,
 		)
 		return
@@ -69,5 +69,4 @@ func (h *MusicHandler) GetAllMusic(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
 }

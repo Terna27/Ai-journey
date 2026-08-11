@@ -10,6 +10,7 @@ import (
 	"music-api/internal/handler"
 	"music-api/internal/middleware"
 	"music-api/internal/repository"
+	"music-api/internal/service"
 
 	"github.com/joho/godotenv"
 )
@@ -33,11 +34,11 @@ func main() {
 
 	repo := repository.NewMusicRepository(db.Pool)
 
-	musicHandler := handler.NewMusicHandler(repo)
+	svc := service.NewMusicService(repo)
+
+	musicHandler := handler.NewMusicHandler(svc)
 
 	mux := http.NewServeMux()
-
-	handler := middleware.APIKey(mux)
 
 	mux.HandleFunc("POST /music", musicHandler.CreateMusic)
 	mux.HandleFunc("GET /music", musicHandler.GetAllMusic)
@@ -46,6 +47,9 @@ func main() {
 	mux.HandleFunc("PATCH /music/{id}", musicHandler.PatchMusic)
 	mux.HandleFunc("DELETE /music/{id}", musicHandler.DeleteMusic)
 	mux.HandleFunc("POST /music/{id}/like", musicHandler.LikeMusic)
+
+	handler := middleware.APIKey(mux)
+	handler = middleware.RequestLogger(handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

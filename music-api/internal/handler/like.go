@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jackc/pgx/v5"
+	"music-api/internal/middleware"
+	"music-api/internal/service"
 )
 
 func (h *MusicHandler) LikeMusic(w http.ResponseWriter, r *http.Request) {
@@ -18,18 +19,21 @@ func (h *MusicHandler) LikeMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedMusic, err := h.Repo.Like(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			http.Error(w, "music post not found", http.StatusNotFound)
-			return
-		}
+	// Identify the caller so the "one like per caller" rule has something to
+	// key on. There is no per-user auth yet, so we use the client IP; when
+	// real users exist this becomes the authenticated user id.
+	likerID := middleware.GetClientIP(r)
 
-		http.Error(
-			w,
-			"failed to like music post",
-			http.StatusInternalServerError,
-		)
+	updatedMusic, err := h.Service.LikeMusic(r.Context(), id, likerID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMusicNotFound):
+			http.Error(w, "music post not found", http.StatusNotFound)
+		case errors.Is(err, service.ErrAlreadyLiked):
+			http.Error(w, "you have already liked this music post", http.StatusConflict)
+		default:
+			http.Error(w, "failed to like music post", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -43,5 +47,4 @@ func (h *MusicHandler) LikeMusic(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
 }

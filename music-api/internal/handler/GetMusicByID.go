@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jackc/pgx/v5"
+	"music-api/internal/service"
 )
 
 func (h *MusicHandler) GetMusic(w http.ResponseWriter, r *http.Request) {
@@ -19,10 +19,9 @@ func (h *MusicHandler) GetMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	music, err := h.Repo.GetByID(r.Context(), id)
+	music, err := h.Service.GetMusic(r.Context(), id)
 	if err != nil {
-
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, service.ErrMusicNotFound) {
 			http.Error(w, "music post not found", http.StatusNotFound)
 			return
 		}
