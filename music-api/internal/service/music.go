@@ -41,6 +41,7 @@ type CreateMusicInput struct {
 	SongTitle  string
 	Genre      string
 	ImageURL   string
+	AudioKey   string
 }
 
 // UpdateMusicInput carries a partial update. A nil pointer means "leave this
@@ -51,6 +52,7 @@ type UpdateMusicInput struct {
 	SongTitle  *string
 	Genre      *string
 	ImageURL   *string
+	AudioKey   *string
 }
 
 // MusicService holds the business rules for music posts.
@@ -147,6 +149,10 @@ func (s *MusicService) PatchMusic(ctx context.Context, id int, in UpdateMusicInp
 		music.ImageURL = strings.TrimSpace(*in.ImageURL)
 	}
 
+	if in.AudioKey != nil {
+		music.AudioKey = strings.TrimSpace(*in.AudioKey)
+	}
+
 	updated, err := s.repo.Update(ctx, id, music)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -210,5 +216,6 @@ func buildMusic(in CreateMusicInput) (models.Music, error) {
 		SongTitle:  title,
 		Genre:      genre,
 		ImageURL:   strings.TrimSpace(in.ImageURL),
+		AudioKey:   strings.TrimSpace(in.AudioKey),
 	}, nil
 }

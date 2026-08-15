@@ -5,6 +5,7 @@ type CreateMusicRequest struct {
 	SongTitle  string `json:"song_title"`
 	Genre      string `json:"genre"`
 	ImageURL   string `json:"image_url"`
+	AudioKey   string `json:"audio_key"`
 }
 
 type UpdateMusicRequest struct {
@@ -12,4 +13,5 @@ type UpdateMusicRequest struct {
 	SongTitle  *string `json:"song_title"`
 	Genre      *string `json:"genre"`
 	ImageURL   *string `json:"image_url"`
+	AudioKey   *string `json:"audio_key"`
 }

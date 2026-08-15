@@ -32,6 +32,7 @@ func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		SongTitle:  req.SongTitle,
 		Genre:      req.Genre,
 		ImageURL:   req.ImageURL,
+		AudioKey:   req.AudioKey,
 	})
 	if err != nil {
 		switch {

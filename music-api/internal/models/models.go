@@ -8,6 +8,7 @@ type Music struct {
 	SongTitle  string    `json:"song_title"`
 	Genre      string    `json:"genre"`
 	ImageURL   string    `json:"image_url"`
+	AudioKey   string    `json:"audio_key"`
 	Likes      int       `json:"likes"`
 	Loves      int       `json:"loves"`
 	Rating     float64   `json:"rating"`

@@ -23,6 +23,7 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		SongTitle:  req.SongTitle,
 		Genre:      req.Genre,
 		ImageURL:   req.ImageURL,
+		AudioKey:   req.AudioKey,
 	})
 	if err != nil {
 		if isValidationError(err) {

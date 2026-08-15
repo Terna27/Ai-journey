@@ -30,15 +30,17 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 			artist_name,
 			song_title,
 			genre,
-			image_url
+			image_url,
+			audio_key
 		)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING
 			id,
 			artist_name,
 			song_title,
 			genre,
 			image_url,
+			audio_key,
 			likes,
 			loves,
 			rating,
@@ -58,6 +60,7 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
 		&music.Rating,
@@ -102,6 +105,7 @@ func (r *MusicRepository) GetAll(
 		song_title,
 		genre,
 		image_url,
+		audio_key,
 		likes,
 		loves,
 		rating,
@@ -147,6 +151,7 @@ func (r *MusicRepository) GetAll(
 			&music.SongTitle,
 			&music.Genre,
 			&music.ImageURL,
+			&music.AudioKey,
 			&music.Likes,
 			&music.Loves,
 			&music.Rating,
@@ -176,6 +181,7 @@ func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, er
 			song_title,
 			genre,
 			image_url,
+			audio_key,
 			likes,
 			loves,
 			rating,
@@ -192,6 +198,7 @@ func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, er
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
 		&music.Rating,
@@ -217,14 +224,16 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 			artist_name = $1,
 			song_title = $2,
 			genre = $3,
-			image_url = $4
-		WHERE id = $5
+			image_url = $4,
+			audio_key = $5
+		WHERE id = $6
 		RETURNING
 			id,
 			artist_name,
 			song_title,
 			genre,
 			image_url,
+			audio_key,
 			likes,
 			loves,
 			rating,
@@ -238,6 +247,7 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 		music.SongTitle,
 		music.Genre,
 		music.ImageURL,
+		music.AudioKey,
 		id,
 	).Scan(
 		&music.ID,
@@ -245,6 +255,7 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
 		&music.Rating,
