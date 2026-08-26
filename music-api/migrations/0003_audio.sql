@@ -1,0 +1,7 @@
+-- 0003_audio.sql
+
+ALTER TABLE music
+ADD COLUMN IF NOT EXISTS audio_url TEXT;
+
+ALTER TABLE music
+ADD COLUMN IF NOT EXISTS audio_public_id TEXT;

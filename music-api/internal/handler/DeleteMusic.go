@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"music-api/internal/service"
+	"music-api/internal/services"
 )
 
 func (h *MusicHandler) DeleteMusic(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +20,7 @@ func (h *MusicHandler) DeleteMusic(w http.ResponseWriter, r *http.Request) {
 
 	err = h.Service.DeleteMusic(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrMusicNotFound) {
+		if errors.Is(err, services.ErrMusicNotFound) {
 			http.Error(w, "music post not found", http.StatusNotFound)
 			return
 		}

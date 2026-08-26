@@ -14,8 +14,6 @@ type MusicRepository struct {
 	DB *pgxpool.Pool
 }
 
-// ErrAlreadyLiked is returned by RecordLike when the caller has already liked
-// the given music post. Callers use errors.Is to detect it.
 var ErrAlreadyLiked = errors.New("music already liked by this caller")
 
 func NewMusicRepository(db *pgxpool.Pool) *MusicRepository {
@@ -23,23 +21,29 @@ func NewMusicRepository(db *pgxpool.Pool) *MusicRepository {
 		DB: db,
 	}
 }
-func (r *MusicRepository) Create(ctx context.Context, music models.Music) (models.Music, error) {
 
+func (r *MusicRepository) Create(ctx context.Context, music models.Music) (models.Music, error) {
 	query := `
 		INSERT INTO music (
 			artist_name,
 			song_title,
 			genre,
 			image_url,
+			image_public_id,
+			audio_url,
+			audio_public_id,
 			audio_key
 		)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING
 			id,
 			artist_name,
 			song_title,
 			genre,
 			image_url,
+			image_public_id,
+			audio_url,
+			audio_public_id,
 			audio_key,
 			likes,
 			loves,
@@ -54,12 +58,19 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 		music.SongTitle,
 		music.Genre,
 		music.ImageURL,
+		music.ImagePublicID,
+		music.AudioURL,
+		music.AudioPublicID,
+		music.AudioKey,
 	).Scan(
 		&music.ID,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.ImagePublicID,
+		&music.AudioURL,
+		&music.AudioPublicID,
 		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
@@ -73,6 +84,7 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 
 	return music, nil
 }
+
 func (r *MusicRepository) GetAll(
 	ctx context.Context,
 	search string,
@@ -99,32 +111,35 @@ func (r *MusicRepository) GetAll(
 	offset := (page - 1) * limit
 
 	query := `
-	SELECT
-		id,
-		artist_name,
-		song_title,
-		genre,
-		image_url,
-		audio_key,
-		likes,
-		loves,
-		rating,
-		date_posted
-	FROM music
-	WHERE
-		(
-			$1 = ''
-			OR artist_name ILIKE '%' || $1 || '%'
-			OR song_title ILIKE '%' || $1 || '%'
-		)
-		AND (
-			$2 = ''
-			OR genre ILIKE $2
-		)
-	ORDER BY ` + orderBy + `
-	LIMIT $3
-	OFFSET $4
-`
+		SELECT
+			id,
+			artist_name,
+			song_title,
+			genre,
+			COALESCE(image_url, ''),
+			COALESCE(image_public_id, ''),
+			COALESCE(audio_url, ''),
+			COALESCE(audio_public_id, ''),
+			COALESCE(audio_key, ''),
+			likes,
+			loves,
+			rating,
+			date_posted
+		FROM music
+		WHERE
+			(
+				$1 = ''
+				OR artist_name ILIKE '%' || $1 || '%'
+				OR song_title ILIKE '%' || $1 || '%'
+			)
+			AND (
+				$2 = ''
+				OR genre ILIKE $2
+			)
+		ORDER BY ` + orderBy + `
+		LIMIT $3
+		OFFSET $4
+	`
 
 	rows, err := r.DB.Query(
 		ctx,
@@ -151,6 +166,9 @@ func (r *MusicRepository) GetAll(
 			&music.SongTitle,
 			&music.Genre,
 			&music.ImageURL,
+			&music.ImagePublicID,
+			&music.AudioURL,
+			&music.AudioPublicID,
 			&music.AudioKey,
 			&music.Likes,
 			&music.Loves,
@@ -169,19 +187,20 @@ func (r *MusicRepository) GetAll(
 	}
 
 	return musicList, nil
-
 }
 
 func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, error) {
-
 	query := `
 		SELECT
 			id,
 			artist_name,
 			song_title,
 			genre,
-			image_url,
-			audio_key,
+			COALESCE(image_url, ''),
+			COALESCE(image_public_id, ''),
+			COALESCE(audio_url, ''),
+			COALESCE(audio_public_id, ''),
+			COALESCE(audio_key, ''),
 			likes,
 			loves,
 			rating,
@@ -198,6 +217,9 @@ func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, er
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.ImagePublicID,
+		&music.AudioURL,
+		&music.AudioPublicID,
 		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
@@ -217,7 +239,6 @@ func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, er
 }
 
 func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music) (models.Music, error) {
-
 	query := `
 		UPDATE music
 		SET
@@ -225,14 +246,20 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 			song_title = $2,
 			genre = $3,
 			image_url = $4,
-			audio_key = $5
-		WHERE id = $6
+			image_public_id = $5,
+			audio_url = $6,
+			audio_public_id = $7,
+			audio_key = $8
+		WHERE id = $9
 		RETURNING
 			id,
 			artist_name,
 			song_title,
 			genre,
 			image_url,
+			image_public_id,
+			audio_url,
+			audio_public_id,
 			audio_key,
 			likes,
 			loves,
@@ -247,6 +274,9 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 		music.SongTitle,
 		music.Genre,
 		music.ImageURL,
+		music.ImagePublicID,
+		music.AudioURL,
+		music.AudioPublicID,
 		music.AudioKey,
 		id,
 	).Scan(
@@ -255,6 +285,9 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.ImagePublicID,
+		&music.AudioURL,
+		&music.AudioPublicID,
 		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
@@ -274,7 +307,6 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 }
 
 func (r *MusicRepository) Delete(ctx context.Context, id int) error {
-
 	query := `
 		DELETE FROM music
 		WHERE id = $1
@@ -292,32 +324,29 @@ func (r *MusicRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-// RecordLike registers a like for musicID from likerID and returns the updated
-// music post. It enforces "one like per caller": a second like from the same
-// likerID returns ErrAlreadyLiked and does not change the count. The whole
-// operation runs in a transaction so the uniqueness check and the counter
-// increment cannot diverge under concurrency.
 func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID string) (models.Music, error) {
-
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return models.Music{}, err
 	}
 	defer tx.Rollback(ctx)
 
-	// Confirm the post exists first, so a missing post is a clean not-found
-	// rather than a foreign-key violation surfacing as a 500.
 	var exists int
-	err = tx.QueryRow(ctx, `SELECT id FROM music WHERE id = $1`, musicID).Scan(&exists)
+
+	err = tx.QueryRow(
+		ctx,
+		`SELECT id FROM music WHERE id = $1`,
+		musicID,
+	).Scan(&exists)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return models.Music{}, pgx.ErrNoRows
 		}
+
 		return models.Music{}, err
 	}
 
-	// Insert the like. ON CONFLICT DO NOTHING relies on the (music_id,
-	// liker_id) primary key: a duplicate inserts zero rows.
 	result, err := tx.Exec(
 		ctx,
 		`INSERT INTO music_likes (music_id, liker_id)
@@ -326,6 +355,7 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 		musicID,
 		likerID,
 	)
+
 	if err != nil {
 		return models.Music{}, err
 	}
@@ -334,7 +364,6 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 		return models.Music{}, ErrAlreadyLiked
 	}
 
-	// First like from this caller: bump the denormalized counter.
 	query := `
 		UPDATE music
 		SET likes = likes + 1
@@ -344,7 +373,11 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 			artist_name,
 			song_title,
 			genre,
-			image_url,
+			COALESCE(image_url, ''),
+			COALESCE(image_public_id, ''),
+			COALESCE(audio_url, ''),
+			COALESCE(audio_public_id, ''),
+			COALESCE(audio_key, ''),
 			likes,
 			loves,
 			rating,
@@ -359,11 +392,16 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 		&music.SongTitle,
 		&music.Genre,
 		&music.ImageURL,
+		&music.ImagePublicID,
+		&music.AudioURL,
+		&music.AudioPublicID,
+		&music.AudioKey,
 		&music.Likes,
 		&music.Loves,
 		&music.Rating,
 		&music.DatePosted,
 	)
+
 	if err != nil {
 		return models.Music{}, err
 	}

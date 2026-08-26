@@ -1,11 +1,11 @@
 package handler
 
 type CreateMusicRequest struct {
-	ArtistName string `json:"artist_name"`
-	SongTitle  string `json:"song_title"`
-	Genre      string `json:"genre"`
-	ImageURL   string `json:"image_url"`
-	AudioKey   string `json:"audio_key"`
+	ArtistName string
+	SongTitle  string
+	Genre      string
+	ImageURL   string
+	AudioKey   string
 }
 
 type UpdateMusicRequest struct {

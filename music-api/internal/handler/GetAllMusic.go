@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -52,6 +53,8 @@ func (h *MusicHandler) GetAllMusic(w http.ResponseWriter, r *http.Request) {
 		limit,
 	)
 	if err != nil {
+		log.Printf("GetAllMusic failed: %v", err)
+
 		http.Error(
 			w,
 			"failed to get music posts",

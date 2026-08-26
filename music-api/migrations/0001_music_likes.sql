@@ -12,3 +12,6 @@ CREATE TABLE IF NOT EXISTS music_likes (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (music_id, liker_id)
 );
+
+ALTER TABLE music
+ADD COLUMN IF NOT EXISTS image_public_id TEXT;

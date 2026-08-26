@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -37,11 +37,14 @@ var (
 // CreateMusicInput carries the fields needed to create or fully replace a
 // music post. Validation is the service's responsibility, not the caller's.
 type CreateMusicInput struct {
-	ArtistName string
-	SongTitle  string
-	Genre      string
-	ImageURL   string
-	AudioKey   string
+	ArtistName    string
+	SongTitle     string
+	Genre         string
+	ImageURL      string
+	ImagePublicID string
+	AudioURL      string
+	AudioPublicID string
+	AudioKey      string
 }
 
 // UpdateMusicInput carries a partial update. A nil pointer means "leave this
@@ -212,10 +215,13 @@ func buildMusic(in CreateMusicInput) (models.Music, error) {
 	}
 
 	return models.Music{
-		ArtistName: artist,
-		SongTitle:  title,
-		Genre:      genre,
-		ImageURL:   strings.TrimSpace(in.ImageURL),
-		AudioKey:   strings.TrimSpace(in.AudioKey),
+		ArtistName:    artist,
+		SongTitle:     title,
+		Genre:         genre,
+		ImageURL:      strings.TrimSpace(in.ImageURL),
+		ImagePublicID: strings.TrimSpace(in.ImagePublicID),
+		AudioURL:      strings.TrimSpace(in.AudioURL),
+		AudioPublicID: strings.TrimSpace(in.AudioPublicID),
+		AudioKey:      strings.TrimSpace(in.AudioKey),
 	}, nil
 }

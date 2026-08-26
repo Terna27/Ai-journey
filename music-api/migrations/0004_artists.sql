@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS artists (
+    id BIGSERIAL PRIMARY KEY,
+
+    name TEXT NOT NULL,
+
+    email TEXT NOT NULL UNIQUE,
+
+    password_hash TEXT NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+ALTER TABLE music
+ADD COLUMN IF NOT EXISTS artist_id BIGINT
+REFERENCES artists(id)
+ON DELETE CASCADE;

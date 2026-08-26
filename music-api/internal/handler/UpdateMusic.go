@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"music-api/internal/service"
+	"music-api/internal/services"
 )
 
 func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +27,7 @@ func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedMusic, err := h.Service.UpdateMusic(r.Context(), id, service.CreateMusicInput{
+	updatedMusic, err := h.Service.UpdateMusic(r.Context(), id, services.CreateMusicInput{
 		ArtistName: req.ArtistName,
 		SongTitle:  req.SongTitle,
 		Genre:      req.Genre,
@@ -38,7 +38,7 @@ func (h *MusicHandler) UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case isValidationError(err):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-		case errors.Is(err, service.ErrMusicNotFound):
+		case errors.Is(err, services.ErrMusicNotFound):
 			http.Error(w, "music post not found", http.StatusNotFound)
 		default:
 			http.Error(w, "failed to update music post", http.StatusInternalServerError)

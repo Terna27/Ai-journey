@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Music API</title>
+
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+
+  <body>
+    <header class="topbar">
+      <div class="container">
+        <h1>Music API</h1>
+        <p>Discover and listen to music</p>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="music-section">
+        <div class="section-header">
+          <h2>Latest Music</h2>
+
+          <div class="filters">
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Search songs or artists..."
+            />
+
+            <select id="genre-filter">
+              <option value="">All genres</option>
+            </select>
+
+            <select id="sort-filter">
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="rating">Highest rated</option>
+              <option value="likes">Most liked</option>
+              <option value="loves">Most loved</option>
+            </select>
+
+            <button id="search-btn">Search</button>
+          </div>
+        </div>
+
+        <div id="music-list" class="music-list">
+          <p class="loading">Loading music...</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Global Music Player -->
+    <div id="player" class="player">
+      <div class="player-song">
+        <img id="player-cover" class="player-cover" src="" alt="Album cover" />
+
+        <div class="player-info">
+          <h3 id="player-title">Nothing playing</h3>
+          <p id="player-artist">Select a song</p>
+        </div>
+      </div>
+
+      <div class="player-controls">
+        <button id="previous-btn" class="control-btn">⏮</button>
+
+        <button id="play-btn" class="control-btn play-btn">▶</button>
+
+        <button id="next-btn" class="control-btn">⏭</button>
+      </div>
+
+      <div class="player-progress">
+        <span id="current-time">0:00</span>
+
+        <input id="progress-bar" type="range" min="0" max="100" value="0" />
+
+        <span id="duration">0:00</span>
+      </div>
+
+      <div class="player-volume">
+        <span>🔊</span>
+
+        <input
+          id="volume-bar"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="1"
+        />
+      </div>
+    </div>
+
+    <audio id="audio"></audio>
+
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

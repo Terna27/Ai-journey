@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"music-api/internal/middleware"
-	"music-api/internal/service"
+	"music-api/internal/services"
 )
 
 func (h *MusicHandler) LikeMusic(w http.ResponseWriter, r *http.Request) {
@@ -27,9 +27,9 @@ func (h *MusicHandler) LikeMusic(w http.ResponseWriter, r *http.Request) {
 	updatedMusic, err := h.Service.LikeMusic(r.Context(), id, likerID)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrMusicNotFound):
+		case errors.Is(err, services.ErrMusicNotFound):
 			http.Error(w, "music post not found", http.StatusNotFound)
-		case errors.Is(err, service.ErrAlreadyLiked):
+		case errors.Is(err, services.ErrAlreadyLiked):
 			http.Error(w, "you have already liked this music post", http.StatusConflict)
 		default:
 			http.Error(w, "failed to like music post", http.StatusInternalServerError)

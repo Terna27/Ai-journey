@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"music-api/internal/service"
+	"music-api/internal/services"
 )
 
 func (h *MusicHandler) GetMusic(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +21,7 @@ func (h *MusicHandler) GetMusic(w http.ResponseWriter, r *http.Request) {
 
 	music, err := h.Service.GetMusic(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrMusicNotFound) {
+		if errors.Is(err, services.ErrMusicNotFound) {
 			http.Error(w, "music post not found", http.StatusNotFound)
 			return
 		}
