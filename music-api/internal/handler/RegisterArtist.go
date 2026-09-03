@@ -18,14 +18,28 @@ type RegisterArtistRequest struct {
 }
 
 func (h *MusicHandler) RegisterArtist(w http.ResponseWriter, r *http.Request) {
-
 	var req RegisterArtistRequest
 
+	defer r.Body.Close()
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(
+		var maxBytesErr *http.MaxBytesError
+
+		if errors.As(err, &maxBytesErr) {
+			WriteError(
+				w,
+				http.StatusRequestEntityTooLarge,
+				"REQUEST_TOO_LARGE",
+				"request body is too large",
+			)
+			return
+		}
+
+		WriteError(
 			w,
-			"invalid request body",
 			http.StatusBadRequest,
+			"INVALID_REQUEST",
+			"invalid request body",
 		)
 		return
 	}
@@ -36,42 +50,41 @@ func (h *MusicHandler) RegisterArtist(w http.ResponseWriter, r *http.Request) {
 		req.Email,
 		req.Password,
 	)
-
 	if err != nil {
-
 		switch {
-		case errors.Is(err, services.ErrArtistNameRequired):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, services.ErrArtistNameRequired),
+			errors.Is(err, services.ErrArtistEmailRequired),
+			errors.Is(err, services.ErrArtistPasswordRequired),
+			errors.Is(err, services.ErrArtistPasswordTooShort):
 
-		case errors.Is(err, services.ErrArtistEmailRequired):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-		case errors.Is(err, services.ErrArtistPasswordRequired):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-		case errors.Is(err, services.ErrArtistPasswordTooShort):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"VALIDATION_ERROR",
+				err.Error(),
+			)
 
 		case errors.Is(err, pgx.ErrNoRows):
-			http.Error(w, "artist not found", http.StatusNotFound)
+			WriteError(
+				w,
+				http.StatusNotFound,
+				"ARTIST_NOT_FOUND",
+				"artist not found",
+			)
 
 		default:
 			log.Printf("RegisterArtist failed: %v", err)
 
-			http.Error(
+			WriteError(
 				w,
-				"failed to create artist",
 				http.StatusInternalServerError,
+				"INTERNAL_ERROR",
+				"failed to create artist",
 			)
 		}
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(artist); err != nil {
-		return
-	}
+	WriteJSON(w, http.StatusCreated, artist)
 }

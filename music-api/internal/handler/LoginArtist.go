@@ -1,4 +1,3 @@
-
 package handler
 
 import (
@@ -26,14 +25,28 @@ type LoginArtistResponse struct {
 }
 
 func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
-
 	var req LoginArtistRequest
 
+	defer r.Body.Close()
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(
+		var maxBytesErr *http.MaxBytesError
+
+		if errors.As(err, &maxBytesErr) {
+			WriteError(
+				w,
+				http.StatusRequestEntityTooLarge,
+				"REQUEST_TOO_LARGE",
+				"request body is too large",
+			)
+			return
+		}
+
+		WriteError(
 			w,
-			"invalid request body",
 			http.StatusBadRequest,
+			"INVALID_REQUEST",
+			"invalid request body",
 		)
 		return
 	}
@@ -41,10 +54,11 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 	if req.Email == "" || req.Password == "" {
-		http.Error(
+		WriteError(
 			w,
-			"email and password are required",
 			http.StatusBadRequest,
+			"VALIDATION_ERROR",
+			"email and password are required",
 		)
 		return
 	}
@@ -53,21 +67,22 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 		req.Email,
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			http.Error(
+			WriteError(
 				w,
-				"invalid email or password",
 				http.StatusUnauthorized,
+				"INVALID_CREDENTIALS",
+				"invalid email or password",
 			)
 			return
 		}
 
-		http.Error(
+		WriteError(
 			w,
-			"failed to login",
 			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"failed to login",
 		)
 		return
 	}
@@ -76,10 +91,11 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		[]byte(artist.PasswordHash),
 		[]byte(req.Password),
 	); err != nil {
-		http.Error(
+		WriteError(
 			w,
-			"invalid email or password",
 			http.StatusUnauthorized,
+			"INVALID_CREDENTIALS",
+			"invalid email or password",
 		)
 		return
 	}
@@ -88,12 +104,12 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		artist.ID,
 		artist.Email,
 	)
-
 	if err != nil {
-		http.Error(
+		WriteError(
 			w,
-			"failed to generate token",
 			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"failed to login",
 		)
 		return
 	}
@@ -106,11 +122,5 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 	response.Artist.Name = artist.Name
 	response.Artist.Email = artist.Email
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return
-	}
+	WriteJSON(w, http.StatusOK, response)
 }
-

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -16,32 +15,34 @@ func (h *MusicHandler) GetAllMusic(w http.ResponseWriter, r *http.Request) {
 	page := 1
 	limit := 10
 
-	if pageValue := r.URL.Query().Get("page"); pageValue != "" {
-		parsedPage, err := strconv.Atoi(pageValue)
-		if err != nil || parsedPage < 1 {
-			http.Error(
+	if value := r.URL.Query().Get("page"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 {
+			WriteError(
 				w,
-				"page must be a positive number",
 				http.StatusBadRequest,
+				"INVALID_PAGE",
+				"page must be a positive number",
 			)
 			return
 		}
 
-		page = parsedPage
+		page = parsed
 	}
 
-	if limitValue := r.URL.Query().Get("limit"); limitValue != "" {
-		parsedLimit, err := strconv.Atoi(limitValue)
-		if err != nil || parsedLimit < 1 || parsedLimit > 100 {
-			http.Error(
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 100 {
+			WriteError(
 				w,
-				"limit must be between 1 and 100",
 				http.StatusBadRequest,
+				"INVALID_LIMIT",
+				"limit must be between 1 and 100",
 			)
 			return
 		}
 
-		limit = parsedLimit
+		limit = parsed
 	}
 
 	musicList, err := h.Service.ListMusic(
@@ -55,21 +56,14 @@ func (h *MusicHandler) GetAllMusic(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("GetAllMusic failed: %v", err)
 
-		http.Error(
+		WriteError(
 			w,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
 			"failed to get music posts",
-			http.StatusInternalServerError,
 		)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(musicList); err != nil {
-		http.Error(
-			w,
-			"failed to encode response",
-			http.StatusInternalServerError,
-		)
-		return
-	}
+	WriteJSON(w, http.StatusOK, musicList)
 }

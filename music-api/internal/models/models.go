@@ -4,6 +4,7 @@ import "time"
 
 type Music struct {
 	ID            int       `json:"id"`
+	ArtistID      *int      `json:"artist_id"`
 	ArtistName    string    `json:"artist_name"`
 	SongTitle     string    `json:"song_title"`
 	Genre         string    `json:"genre"`
@@ -18,12 +19,11 @@ type Music struct {
 	DatePosted    time.Time `json:"date_posted"`
 }
 
-
 type Artist struct {
 	ID           int       `json:"id"`
 	Name         string    `json:"name"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }

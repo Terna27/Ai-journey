@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -10,29 +9,37 @@ import (
 )
 
 func (h *MusicHandler) GetMusic(w http.ResponseWriter, r *http.Request) {
-
-	idStr := r.PathValue("id")
-
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "invalid music post ID", http.StatusBadRequest)
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id < 1 {
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_MUSIC_ID",
+			"invalid music post ID",
+		)
 		return
 	}
 
 	music, err := h.Service.GetMusic(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, services.ErrMusicNotFound) {
-			http.Error(w, "music post not found", http.StatusNotFound)
+			WriteError(
+				w,
+				http.StatusNotFound,
+				"MUSIC_NOT_FOUND",
+				"music post not found",
+			)
 			return
 		}
 
-		http.Error(w, "failed to retrieve music post", http.StatusInternalServerError)
+		WriteError(
+			w,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"failed to retrieve music post",
+		)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(music); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-	}
+	WriteJSON(w, http.StatusOK, music)
 }

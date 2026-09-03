@@ -1,17 +1,45 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
+	"music-api/internal/middleware"
 	"music-api/internal/services"
 )
 
 func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(20 << 20); err != nil {
-		http.Error(w, "invalid multipart form", http.StatusBadRequest)
+	artistID, ok := middleware.ArtistIDFromContext(r.Context())
+	if !ok {
+		WriteError(
+			w,
+			http.StatusUnauthorized,
+			"AUTHENTICATION_REQUIRED",
+			"artist authentication is required",
+		)
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		var maxBytesErr *http.MaxBytesError
+
+		if errors.As(err, &maxBytesErr) {
+			WriteError(
+				w,
+				http.StatusRequestEntityTooLarge,
+				"REQUEST_TOO_LARGE",
+				"music upload is too large",
+			)
+			return
+		}
+
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_MULTIPART_FORM",
+			"invalid multipart form",
+		)
 		return
 	}
 
@@ -20,39 +48,60 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 	genre := strings.TrimSpace(r.FormValue("genre"))
 	audioKey := strings.TrimSpace(r.FormValue("audio_key"))
 
-	// Validate required text fields before uploading anything.
 	if artistName == "" {
-		http.Error(w, services.ErrArtistNameRequired.Error(), http.StatusBadRequest)
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"VALIDATION_ERROR",
+			services.ErrArtistNameRequired.Error(),
+		)
 		return
 	}
 
 	if songTitle == "" {
-		http.Error(w, services.ErrSongTitleRequired.Error(), http.StatusBadRequest)
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"VALIDATION_ERROR",
+			services.ErrSongTitleRequired.Error(),
+		)
 		return
 	}
 
 	if genre == "" {
-		http.Error(w, services.ErrGenreRequired.Error(), http.StatusBadRequest)
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"VALIDATION_ERROR",
+			services.ErrGenreRequired.Error(),
+		)
 		return
 	}
 
-	// Get image file.
 	imageFile, imageHeader, err := r.FormFile("image")
 	if err != nil {
-		http.Error(w, "image is required", http.StatusBadRequest)
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"IMAGE_REQUIRED",
+			"image is required",
+		)
 		return
 	}
 	defer imageFile.Close()
 
-	// Get audio file.
 	audioFile, audioHeader, err := r.FormFile("audio")
 	if err != nil {
-		http.Error(w, "audio is required", http.StatusBadRequest)
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"AUDIO_REQUIRED",
+			"audio is required",
+		)
 		return
 	}
 	defer audioFile.Close()
 
-	// Upload image to Cloudinary.
 	imageResult, err := h.CloudinaryService.UploadImage(
 		r.Context(),
 		imageFile,
@@ -60,11 +109,15 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		"music/images",
 	)
 	if err != nil {
-		http.Error(w, "failed to upload image", http.StatusInternalServerError)
+		WriteError(
+			w,
+			http.StatusInternalServerError,
+			"UPLOAD_FAILED",
+			"failed to upload image",
+		)
 		return
 	}
 
-	// Upload audio to Cloudinary.
 	audioResult, err := h.CloudinaryService.UploadAudio(
 		r.Context(),
 		audioFile,
@@ -72,12 +125,18 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		"music/audio",
 	)
 	if err != nil {
-		http.Error(w, "failed to upload audio", http.StatusInternalServerError)
+		WriteError(
+			w,
+			http.StatusInternalServerError,
+			"UPLOAD_FAILED",
+			"failed to upload audio",
+		)
 		return
 	}
 
 	createdMusic, err := h.Service.CreateMusic(
 		r.Context(),
+		artistID,
 		services.CreateMusicInput{
 			ArtistName:    artistName,
 			SongTitle:     songTitle,
@@ -90,25 +149,38 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		if isValidationError(err) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		switch {
+		case isValidationError(err):
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"VALIDATION_ERROR",
+				err.Error(),
+			)
+
+		case errors.Is(err, services.ErrUnauthorized):
+			WriteError(
+				w,
+				http.StatusUnauthorized,
+				"AUTHENTICATION_REQUIRED",
+				"artist authentication is required",
+			)
+
+		default:
+			WriteError(
+				w,
+				http.StatusInternalServerError,
+				"INTERNAL_ERROR",
+				"failed to create music post",
+			)
 		}
 
-		http.Error(w, "failed to create music post", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(createdMusic); err != nil {
-		return
-	}
+	WriteJSON(w, http.StatusCreated, createdMusic)
 }
 
-// isValidationError reports whether err is one of the service's field-level
-// validation errors, which map to 400 Bad Request.
 func isValidationError(err error) bool {
 	return errors.Is(err, services.ErrArtistNameRequired) ||
 		errors.Is(err, services.ErrSongTitleRequired) ||

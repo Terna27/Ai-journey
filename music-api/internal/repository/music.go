@@ -22,9 +22,15 @@ func NewMusicRepository(db *pgxpool.Pool) *MusicRepository {
 	}
 }
 
-func (r *MusicRepository) Create(ctx context.Context, music models.Music) (models.Music, error) {
+// Create creates a new music record owned by the authenticated artist.
+func (r *MusicRepository) Create(
+	ctx context.Context,
+	artistID int,
+	music models.Music,
+) (models.Music, error) {
 	query := `
 		INSERT INTO music (
+			artist_id,
 			artist_name,
 			song_title,
 			genre,
@@ -34,17 +40,18 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 			audio_public_id,
 			audio_key
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING
 			id,
+			artist_id,
 			artist_name,
 			song_title,
 			genre,
-			image_url,
-			image_public_id,
-			audio_url,
-			audio_public_id,
-			audio_key,
+			COALESCE(image_url, ''),
+			COALESCE(image_public_id, ''),
+			COALESCE(audio_url, ''),
+			COALESCE(audio_public_id, ''),
+			COALESCE(audio_key, ''),
 			likes,
 			loves,
 			rating,
@@ -54,6 +61,7 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 	err := r.DB.QueryRow(
 		ctx,
 		query,
+		artistID,
 		music.ArtistName,
 		music.SongTitle,
 		music.Genre,
@@ -64,6 +72,7 @@ func (r *MusicRepository) Create(ctx context.Context, music models.Music) (model
 		music.AudioKey,
 	).Scan(
 		&music.ID,
+		&music.ArtistID,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -113,6 +122,7 @@ func (r *MusicRepository) GetAll(
 	query := `
 		SELECT
 			id,
+			artist_id,
 			artist_name,
 			song_title,
 			genre,
@@ -162,6 +172,7 @@ func (r *MusicRepository) GetAll(
 
 		err := rows.Scan(
 			&music.ID,
+			&music.ArtistID,
 			&music.ArtistName,
 			&music.SongTitle,
 			&music.Genre,
@@ -189,10 +200,14 @@ func (r *MusicRepository) GetAll(
 	return musicList, nil
 }
 
-func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, error) {
+func (r *MusicRepository) GetByID(
+	ctx context.Context,
+	id int,
+) (models.Music, error) {
 	query := `
 		SELECT
 			id,
+			artist_id,
 			artist_name,
 			song_title,
 			genre,
@@ -211,8 +226,13 @@ func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, er
 
 	var music models.Music
 
-	err := r.DB.QueryRow(ctx, query, id).Scan(
+	err := r.DB.QueryRow(
+		ctx,
+		query,
+		id,
+	).Scan(
 		&music.ID,
+		&music.ArtistID,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -238,7 +258,13 @@ func (r *MusicRepository) GetByID(ctx context.Context, id int) (models.Music, er
 	return music, nil
 }
 
-func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music) (models.Music, error) {
+// Update only updates a music record when it belongs to artistID.
+func (r *MusicRepository) Update(
+	ctx context.Context,
+	id int,
+	artistID int,
+	music models.Music,
+) (models.Music, error) {
 	query := `
 		UPDATE music
 		SET
@@ -251,16 +277,18 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 			audio_public_id = $7,
 			audio_key = $8
 		WHERE id = $9
+		  AND artist_id = $10
 		RETURNING
 			id,
+			artist_id,
 			artist_name,
 			song_title,
 			genre,
-			image_url,
-			image_public_id,
-			audio_url,
-			audio_public_id,
-			audio_key,
+			COALESCE(image_url, ''),
+			COALESCE(image_public_id, ''),
+			COALESCE(audio_url, ''),
+			COALESCE(audio_public_id, ''),
+			COALESCE(audio_key, ''),
 			likes,
 			loves,
 			rating,
@@ -279,8 +307,10 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 		music.AudioPublicID,
 		music.AudioKey,
 		id,
+		artistID,
 	).Scan(
 		&music.ID,
+		&music.ArtistID,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -306,13 +336,24 @@ func (r *MusicRepository) Update(ctx context.Context, id int, music models.Music
 	return music, nil
 }
 
-func (r *MusicRepository) Delete(ctx context.Context, id int) error {
+// Delete only deletes a music record when it belongs to artistID.
+func (r *MusicRepository) Delete(
+	ctx context.Context,
+	id int,
+	artistID int,
+) error {
 	query := `
 		DELETE FROM music
 		WHERE id = $1
+		  AND artist_id = $2
 	`
 
-	result, err := r.DB.Exec(ctx, query, id)
+	result, err := r.DB.Exec(
+		ctx,
+		query,
+		id,
+		artistID,
+	)
 	if err != nil {
 		return err
 	}
@@ -324,11 +365,19 @@ func (r *MusicRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID string) (models.Music, error) {
+// RecordLike records one like per likerID.
+//
+// A caller does not need to own the music to like it.
+func (r *MusicRepository) RecordLike(
+	ctx context.Context,
+	musicID int,
+	likerID string,
+) (models.Music, error) {
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return models.Music{}, err
 	}
+
 	defer tx.Rollback(ctx)
 
 	var exists int
@@ -349,9 +398,14 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 
 	result, err := tx.Exec(
 		ctx,
-		`INSERT INTO music_likes (music_id, liker_id)
-		 VALUES ($1, $2)
-		 ON CONFLICT DO NOTHING`,
+		`
+			INSERT INTO music_likes (
+				music_id,
+				liker_id
+			)
+			VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+		`,
 		musicID,
 		likerID,
 	)
@@ -370,6 +424,7 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 		WHERE id = $1
 		RETURNING
 			id,
+			artist_id,
 			artist_name,
 			song_title,
 			genre,
@@ -386,8 +441,13 @@ func (r *MusicRepository) RecordLike(ctx context.Context, musicID int, likerID s
 
 	var music models.Music
 
-	err = tx.QueryRow(ctx, query, musicID).Scan(
+	err = tx.QueryRow(
+		ctx,
+		query,
+		musicID,
+	).Scan(
 		&music.ID,
+		&music.ArtistID,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
