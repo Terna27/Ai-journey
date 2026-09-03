@@ -1,0 +1,33 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Local/editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Local uploads
+uploads/
+
+# Temporary files
+tmp/
+*.log
+
+# Build artifacts
+bin/
+dist/
+coverage.out
+
+# Tests are not needed in the runtime build context
+*_test.go
+
+# Documentation / OS metadata
+.DS_Store
+Thumbs.db

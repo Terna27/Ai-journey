@@ -1,1 +1,22 @@
+# Environment secrets
 .env
+.env.*
+!.env.example
+
+# Compiled binaries
+bin/
+*.exe
+
+# Temporary/runtime files
+tmp/
+*.log
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
