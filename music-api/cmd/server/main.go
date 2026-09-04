@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"music-api/internal/config"
 	"music-api/internal/database"
@@ -14,52 +16,75 @@ import (
 	"music-api/internal/middleware"
 	"music-api/internal/repository"
 	"music-api/internal/services"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
 	// =========================
-	// ENVIRONMENT
+	// CONFIGURATION
 	// =========================
-
-	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		log.Printf("warning: could not load .env file: %v", err)
-	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to load configuration: %v", err)
 	}
 
 	// =========================
 	// DATABASE
 	// =========================
 
+	ctx := context.Background()
+
 	db, err := database.Connect(
-		context.Background(),
+		ctx,
 		cfg.DatabaseURL,
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	// =========================
+	// REPOSITORIES
+	// =========================
+
+	musicRepo := repository.NewMusicRepository(
+		db.Pool,
+	)
+
+	artistRepo := repository.NewArtistRepository(
+		db.Pool,
+	)
+
+	userRepo := repository.NewUserRepository(
+		db.Pool,
+	)
 
 	// =========================
 	// SERVICES
 	// =========================
 
-	musicRepo := repository.NewMusicRepository(db.Pool)
-	musicService := services.NewMusicService(musicRepo)
+	musicService := services.NewMusicService(
+		musicRepo,
+	)
 
-	artistRepo := repository.NewArtistRepository(db.Pool)
-	artistService := services.NewArtistService(artistRepo)
+	artistService := services.NewArtistService(
+		artistRepo,
+	)
 
-	jwtService := services.NewJWTService(cfg.JWTSecret)
+	userService := services.NewUserService(
+		userRepo,
+	)
+
+	jwtService := services.NewJWTService(
+		cfg.JWTSecret,
+	)
 
 	cloudinaryService, err := services.NewCloudinaryService()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf(
+			"failed to initialize Cloudinary: %v",
+			err,
+		)
 	}
 
 	// =========================
@@ -69,11 +94,14 @@ func main() {
 	musicHandler := handler.NewMusicHandler(
 		musicService,
 		artistService,
+		userService,
 		jwtService,
 		cloudinaryService,
 	)
 
-	healthHandler := handler.NewHealthHandler(db.Pool)
+	healthHandler := handler.NewHealthHandler(
+		db.Pool,
+	)
 
 	// =========================
 	// ROUTER
@@ -82,7 +110,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// =========================
-	// HEALTH CHECKS
+	// HEALTH
 	// =========================
 
 	mux.HandleFunc(
@@ -96,43 +124,51 @@ func main() {
 	)
 
 	// =========================
-	// API V1 - ARTIST AUTH
+	// API V1 - AUTH
 	// =========================
+	//
+	// Unified authentication.
+	//
+	// Every person registers as a user first.
+	//
 
-	mux.Handle(
-		"POST /api/v1/artists/register",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			http.HandlerFunc(musicHandler.RegisterArtist),
-		),
+	mux.HandleFunc(
+		"POST /api/v1/auth/register",
+		musicHandler.RegisterUser,
+	)
+
+	mux.HandleFunc(
+		"POST /api/v1/auth/login",
+		musicHandler.LoginUser,
 	)
 
 	mux.Handle(
-		"POST /api/v1/artists/login",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			http.HandlerFunc(musicHandler.LoginArtist),
+		"GET /api/v1/me",
+		middleware.JWTAuth(
+			jwtService,
+			http.HandlerFunc(
+				musicHandler.GetMe,
+			),
 		),
 	)
 
 	// =========================
-	// LEGACY ARTIST ROUTES
-	// Temporary compatibility
+	// API V1 - ARTIST PROFILE
 	// =========================
+	//
+	// Authenticated users can upgrade their existing
+	// account by creating an artist profile.
+	//
+	// RequireArtist is intentionally NOT used here.
+	//
 
 	mux.Handle(
-		"POST /artists/register",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			http.HandlerFunc(musicHandler.RegisterArtist),
-		),
-	)
-
-	mux.Handle(
-		"POST /artists/login",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			http.HandlerFunc(musicHandler.LoginArtist),
+		"POST /api/v1/artists/profile",
+		middleware.JWTAuth(
+			jwtService,
+			http.HandlerFunc(
+				musicHandler.CreateArtistProfile,
+			),
 		),
 	)
 
@@ -151,31 +187,21 @@ func main() {
 	)
 
 	// =========================
-	// LEGACY PUBLIC MUSIC
-	// Temporary compatibility
+	// API V1 - CREATE MUSIC
 	// =========================
-
-	mux.HandleFunc(
-		"GET /music",
-		musicHandler.GetAllMusic,
-	)
-
-	mux.HandleFunc(
-		"GET /music/{id}",
-		musicHandler.GetMusic,
-	)
-
-	// =========================
-	// API V1 - PROTECTED MUSIC
-	// JWT AUTHENTICATION
-	// =========================
+	//
+	// Requires:
+	//
+	// 1. Valid user JWT
+	// 2. Artist profile
+	//
 
 	mux.Handle(
 		"POST /api/v1/music",
-		middleware.LimitBody(
-			cfg.MaxUploadBodyBytes,
-			middleware.JWTAuth(
-				jwtService,
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireArtist(
+				artistRepo,
 				http.HandlerFunc(
 					musicHandler.CreateMusic,
 				),
@@ -183,12 +209,16 @@ func main() {
 		),
 	)
 
+	// =========================
+	// API V1 - UPDATE MUSIC
+	// =========================
+
 	mux.Handle(
 		"PUT /api/v1/music/{id}",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			middleware.JWTAuth(
-				jwtService,
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireArtist(
+				artistRepo,
 				http.HandlerFunc(
 					musicHandler.UpdateMusic,
 				),
@@ -196,12 +226,16 @@ func main() {
 		),
 	)
 
+	// =========================
+	// API V1 - PATCH MUSIC
+	// =========================
+
 	mux.Handle(
 		"PATCH /api/v1/music/{id}",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			middleware.JWTAuth(
-				jwtService,
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireArtist(
+				artistRepo,
 				http.HandlerFunc(
 					musicHandler.PatchMusic,
 				),
@@ -209,15 +243,32 @@ func main() {
 		),
 	)
 
+	// =========================
+	// API V1 - DELETE MUSIC
+	// =========================
+
 	mux.Handle(
 		"DELETE /api/v1/music/{id}",
 		middleware.JWTAuth(
 			jwtService,
-			http.HandlerFunc(
-				musicHandler.DeleteMusic,
+			middleware.RequireArtist(
+				artistRepo,
+				http.HandlerFunc(
+					musicHandler.DeleteMusic,
+				),
 			),
 		),
 	)
+
+	// =========================
+	// API V1 - LIKE MUSIC
+	// =========================
+	//
+	// Any authenticated user should eventually be
+	// able to like music.
+	//
+	// Artist capability is NOT required.
+	//
 
 	mux.Handle(
 		"POST /api/v1/music/{id}/like",
@@ -230,189 +281,158 @@ func main() {
 	)
 
 	// =========================
-	// LEGACY PROTECTED MUSIC
-	// JWT AUTHENTICATION
+	// LEGACY PUBLIC MUSIC
+	// =========================
 	//
-	// Temporary compatibility.
-	// These routes now follow the same
-	// authentication model as API V1.
-	// =========================
+	// Retained temporarily for compatibility.
+	//
 
-	mux.Handle(
-		"POST /music",
-		middleware.LimitBody(
-			cfg.MaxUploadBodyBytes,
-			middleware.JWTAuth(
-				jwtService,
-				http.HandlerFunc(
-					musicHandler.CreateMusic,
-				),
-			),
-		),
-	)
-
-	mux.Handle(
-		"PUT /music/{id}",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			middleware.JWTAuth(
-				jwtService,
-				http.HandlerFunc(
-					musicHandler.UpdateMusic,
-				),
-			),
-		),
-	)
-
-	mux.Handle(
-		"PATCH /music/{id}",
-		middleware.LimitJSONBody(
-			cfg.MaxJSONBodyBytes,
-			middleware.JWTAuth(
-				jwtService,
-				http.HandlerFunc(
-					musicHandler.PatchMusic,
-				),
-			),
-		),
-	)
-
-	mux.Handle(
-		"DELETE /music/{id}",
-		middleware.JWTAuth(
-			jwtService,
-			http.HandlerFunc(
-				musicHandler.DeleteMusic,
-			),
-		),
-	)
-
-	mux.Handle(
-		"POST /music/{id}/like",
-		middleware.JWTAuth(
-			jwtService,
-			http.HandlerFunc(
-				musicHandler.LikeMusic,
-			),
-		),
-	)
-
-	// =========================
-	// FRONTEND
-	// =========================
-
-	staticFS := http.FileServer(
-		http.Dir("web/static"),
-	)
-
-	mux.Handle(
-		"/static/",
-		http.StripPrefix(
-			"/static/",
-			staticFS,
-		),
+	mux.HandleFunc(
+		"GET /music",
+		musicHandler.GetAllMusic,
 	)
 
 	mux.HandleFunc(
-		"/",
-		func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/" {
-				handler.WriteError(
-					w,
-					http.StatusNotFound,
-					"NOT_FOUND",
-					"resource not found",
-				)
-				return
-			}
-
-			http.ServeFile(
-				w,
-				r,
-				"web/index.html",
-			)
-		},
+		"GET /music/{id}",
+		musicHandler.GetMusic,
 	)
 
 	// =========================
-	// REQUEST LOGGING
+	// CORS
 	// =========================
 
-	rootHandler := middleware.RequestLogger(mux)
+	corsConfig := middleware.CORSConfig{
+		AllowedOrigins: cfg.CORSAllowedOrigins,
+
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+
+		AllowedHeaders: []string{
+			"Authorization",
+			"Content-Type",
+			"X-Request-ID",
+		},
+	}
 
 	// =========================
-	// SERVER
+	// GLOBAL MIDDLEWARE
+	// =========================
+
+	var rootHandler http.Handler = mux
+
+	rootHandler = middleware.CORS(
+		corsConfig,
+		rootHandler,
+	)
+
+	rootHandler = middleware.RequestLogger(
+		rootHandler,
+	)
+
+	// =========================
+	// HTTP SERVER
 	// =========================
 
 	server := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      rootHandler,
-		ReadTimeout:  cfg.ReadTimeout,
+		Addr: ":" + cfg.Port,
+
+		Handler: rootHandler,
+
+		ReadTimeout: cfg.ReadTimeout,
+
 		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
+
+		IdleTimeout: cfg.IdleTimeout,
 	}
 
-	serverErrors := make(chan error, 1)
+	// =========================
+	// START SERVER
+	// =========================
+
+	serverErrors := make(
+		chan error,
+		1,
+	)
 
 	go func() {
 		log.Printf(
-			"Server running on http://localhost:%s",
+			"music API listening on port %s",
 			cfg.Port,
 		)
 
-		if err := server.ListenAndServe(); err != nil &&
-			err != http.ErrServerClosed {
-			serverErrors <- err
-		}
+		serverErrors <- server.ListenAndServe()
 	}()
 
 	// =========================
-	// GRACEFUL SHUTDOWN
+	// SHUTDOWN SIGNALS
 	// =========================
 
-	shutdownSignal := make(chan os.Signal, 1)
+	shutdownSignals := make(
+		chan os.Signal,
+		1,
+	)
 
 	signal.Notify(
-		shutdownSignal,
-		os.Interrupt,
+		shutdownSignals,
+		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
 
 	select {
 	case err := <-serverErrors:
-		log.Fatalf(
-			"server error: %v",
-			err,
-		)
+		if err != nil &&
+			!errors.Is(
+				err,
+				http.ErrServerClosed,
+			) {
 
-	case sig := <-shutdownSignal:
+			log.Fatalf(
+				"server error: %v",
+				err,
+			)
+		}
+
+	case sig := <-shutdownSignals:
 		log.Printf(
 			"shutdown signal received: %s",
 			sig,
 		)
-	}
 
-	shutdownCtx, cancel := context.WithTimeout(
-		context.Background(),
-		cfg.ShutdownTimeout,
-	)
-	defer cancel()
-
-	log.Println("shutting down server...")
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf(
-			"graceful shutdown failed: %v",
-			err,
+		shutdownCtx, cancel := context.WithTimeout(
+			context.Background(),
+			cfg.ShutdownTimeout,
 		)
+		defer cancel()
 
-		if closeErr := server.Close(); closeErr != nil {
+		if err := server.Shutdown(
+			shutdownCtx,
+		); err != nil {
+
 			log.Printf(
-				"forced server close failed: %v",
-				closeErr,
+				"graceful shutdown failed: %v",
+				err,
 			)
+
+			if closeErr := server.Close(); closeErr != nil {
+				log.Printf(
+					"forced server close failed: %v",
+					closeErr,
+				)
+			}
 		}
 	}
 
-	log.Println("server stopped")
+	time.Sleep(
+		100 * time.Millisecond,
+	)
+
+	log.Println(
+		"music API stopped",
+	)
 }

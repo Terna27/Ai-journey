@@ -7,18 +7,19 @@ import (
 	"net/http"
 
 	"music-api/internal/services"
-
-	"github.com/jackc/pgx/v5"
 )
 
-type RegisterArtistRequest struct {
+type RegisterUserRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func (h *MusicHandler) RegisterArtist(w http.ResponseWriter, r *http.Request) {
-	var req RegisterArtistRequest
+func (h *MusicHandler) RegisterUser(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	var req RegisterUserRequest
 
 	defer r.Body.Close()
 
@@ -44,7 +45,7 @@ func (h *MusicHandler) RegisterArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	artist, err := h.ArtistService.Register(
+	user, err := h.UserService.Register(
 		r.Context(),
 		req.Name,
 		req.Email,
@@ -52,10 +53,10 @@ func (h *MusicHandler) RegisterArtist(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, services.ErrArtistNameRequired),
-			errors.Is(err, services.ErrArtistEmailRequired),
-			errors.Is(err, services.ErrArtistPasswordRequired),
-			errors.Is(err, services.ErrArtistPasswordTooShort):
+		case errors.Is(err, services.ErrUserNameRequired),
+			errors.Is(err, services.ErrUserEmailRequired),
+			errors.Is(err, services.ErrUserPasswordRequired),
+			errors.Is(err, services.ErrUserPasswordTooShort):
 
 			WriteError(
 				w,
@@ -64,27 +65,23 @@ func (h *MusicHandler) RegisterArtist(w http.ResponseWriter, r *http.Request) {
 				err.Error(),
 			)
 
-		case errors.Is(err, pgx.ErrNoRows):
-			WriteError(
-				w,
-				http.StatusNotFound,
-				"ARTIST_NOT_FOUND",
-				"artist not found",
-			)
-
 		default:
-			log.Printf("RegisterArtist failed: %v", err)
+			log.Printf("RegisterUser failed: %v", err)
 
 			WriteError(
 				w,
 				http.StatusInternalServerError,
 				"INTERNAL_ERROR",
-				"failed to create artist",
+				"failed to create user",
 			)
 		}
 
 		return
 	}
 
-	WriteJSON(w, http.StatusCreated, artist)
+	WriteJSON(
+		w,
+		http.StatusCreated,
+		user,
+	)
 }

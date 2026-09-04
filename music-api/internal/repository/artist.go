@@ -148,3 +148,93 @@ func (r *ArtistRepository) GetByID(
 
 	return artist, nil
 }
+func (r *ArtistRepository) GetByUserID(
+	ctx context.Context,
+	userID int,
+) (models.Artist, error) {
+	query := `
+		SELECT
+			id,
+			user_id,
+			name,
+			email,
+			password_hash,
+			created_at,
+			updated_at
+		FROM artists
+		WHERE user_id = $1
+	`
+
+	var artist models.Artist
+
+	err := r.DB.QueryRow(
+		ctx,
+		query,
+		userID,
+	).Scan(
+		&artist.ID,
+		&artist.UserID,
+		&artist.Name,
+		&artist.Email,
+		&artist.PasswordHash,
+		&artist.CreatedAt,
+		&artist.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Artist{}, pgx.ErrNoRows
+		}
+
+		return models.Artist{}, err
+	}
+
+	return artist, nil
+}
+func (r *ArtistRepository) CreateForUser(
+	ctx context.Context,
+	user models.User,
+) (models.Artist, error) {
+	query := `
+		INSERT INTO artists (
+			user_id,
+			name,
+			email,
+			password_hash
+		)
+		VALUES ($1, $2, $3, $4)
+		RETURNING
+			id,
+			user_id,
+			name,
+			email,
+			password_hash,
+			created_at,
+			updated_at
+	`
+
+	var artist models.Artist
+
+	err := r.DB.QueryRow(
+		ctx,
+		query,
+		user.ID,
+		user.Name,
+		user.Email,
+		user.PasswordHash,
+	).Scan(
+		&artist.ID,
+		&artist.UserID,
+		&artist.Name,
+		&artist.Email,
+		&artist.PasswordHash,
+		&artist.CreatedAt,
+		&artist.UpdatedAt,
+	)
+
+	if err != nil {
+		return models.Artist{}, err
+	}
+
+	return artist, nil
+}

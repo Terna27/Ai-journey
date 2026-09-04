@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -11,6 +12,8 @@ type Config struct {
 	DatabaseURL string
 	JWTSecret   string
 	Port        string
+
+	CORSAllowedOrigins []string
 
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
@@ -26,6 +29,11 @@ func Load() (*Config, error) {
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
 		Port:        getEnv("PORT", "7000"),
+
+		CORSAllowedOrigins: getCSVEnv(
+			"CORS_ALLOWED_ORIGINS",
+			"http://localhost:5173",
+		),
 
 		ReadTimeout:     getDurationEnv("HTTP_READ_TIMEOUT", 15*time.Second),
 		WriteTimeout:    getDurationEnv("HTTP_WRITE_TIMEOUT", 30*time.Second),
@@ -85,4 +93,21 @@ func getInt64Env(key string, fallback int64) int64 {
 	}
 
 	return parsed
+}
+
+func getCSVEnv(key, fallback string) []string {
+	value := getEnv(key, fallback)
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+
+	return result
 }

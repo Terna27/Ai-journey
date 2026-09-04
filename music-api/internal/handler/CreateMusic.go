@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -109,6 +110,11 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		"music/images",
 	)
 	if err != nil {
+		log.Printf(
+			"cloudinary image upload failed: %v",
+			err,
+		)
+
 		WriteError(
 			w,
 			http.StatusInternalServerError,
@@ -125,6 +131,11 @@ func (h *MusicHandler) CreateMusic(w http.ResponseWriter, r *http.Request) {
 		"music/audio",
 	)
 	if err != nil {
+		log.Printf(
+			"cloudinary audio upload failed: %v",
+			err,
+		)
+
 		WriteError(
 			w,
 			http.StatusInternalServerError,

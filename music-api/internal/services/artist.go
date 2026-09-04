@@ -8,6 +8,7 @@ import (
 	"music-api/internal/models"
 	"music-api/internal/repository"
 
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -15,6 +16,7 @@ var (
 	ErrArtistEmailRequired    = errors.New("artist email is required")
 	ErrArtistPasswordRequired = errors.New("artist password is required")
 	ErrArtistPasswordTooShort = errors.New("artist password must be at least 8 characters")
+	ErrArtistProfileExists    = errors.New("artist profile already exists")
 )
 
 type ArtistService struct {
@@ -87,4 +89,37 @@ func (s *ArtistService) GetByID(
 ) (models.Artist, error) {
 
 	return s.Repository.GetByID(ctx, id)
+}
+
+func (s *ArtistService) CreateForUser(
+	ctx context.Context,
+	user models.User,
+) (models.Artist, error) {
+	if user.ID <= 0 {
+		return models.Artist{}, ErrUnauthorized
+	}
+
+	_, err := s.Repository.GetByUserID(ctx, user.ID)
+	if err == nil {
+		return models.Artist{}, ErrArtistProfileExists
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return models.Artist{}, err
+	}
+
+	return s.Repository.CreateForUser(
+		ctx,
+		user,
+	)
+}
+
+func (s *ArtistService) GetByUserID(
+	ctx context.Context,
+	userID int,
+) (models.Artist, error) {
+	return s.Repository.GetByUserID(
+		ctx,
+		userID,
+	)
 }

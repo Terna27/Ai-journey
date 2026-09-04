@@ -10,22 +10,26 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type LoginArtistRequest struct {
+type LoginUserRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-type LoginArtistResponse struct {
-	Token  string `json:"token"`
-	Artist struct {
+type LoginUserResponse struct {
+	Token string `json:"token"`
+
+	User struct {
 		ID    int    `json:"id"`
 		Name  string `json:"name"`
 		Email string `json:"email"`
-	} `json:"artist"`
+	} `json:"user"`
 }
 
-func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
-	var req LoginArtistRequest
+func (h *MusicHandler) LoginUser(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	var req LoginUserRequest
 
 	defer r.Body.Close()
 
@@ -51,7 +55,9 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	req.Email = strings.ToLower(
+		strings.TrimSpace(req.Email),
+	)
 
 	if req.Email == "" || req.Password == "" {
 		WriteError(
@@ -63,7 +69,7 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	artist, err := h.ArtistService.GetByEmail(
+	user, err := h.UserService.GetByEmail(
 		r.Context(),
 		req.Email,
 	)
@@ -88,7 +94,7 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword(
-		[]byte(artist.PasswordHash),
+		[]byte(user.PasswordHash),
 		[]byte(req.Password),
 	); err != nil {
 		WriteError(
@@ -100,9 +106,9 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.JWTService.GenerateToken(
-		artist.ID,
-		artist.Email,
+	token, err := h.JWTService.GenerateUserToken(
+		user.ID,
+		user.Email,
 	)
 	if err != nil {
 		WriteError(
@@ -114,13 +120,17 @@ func (h *MusicHandler) LoginArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := LoginArtistResponse{
+	response := LoginUserResponse{
 		Token: token,
 	}
 
-	response.Artist.ID = artist.ID
-	response.Artist.Name = artist.Name
-	response.Artist.Email = artist.Email
+	response.User.ID = user.ID
+	response.User.Name = user.Name
+	response.User.Email = user.Email
 
-	WriteJSON(w, http.StatusOK, response)
+	WriteJSON(
+		w,
+		http.StatusOK,
+		response,
+	)
 }
