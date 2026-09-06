@@ -7,8 +7,11 @@ import (
 	"music-api/internal/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrArtistProfileExists = errors.New("artist profile already exists")
 
 type ArtistRepository struct {
 	DB *pgxpool.Pool
@@ -24,7 +27,6 @@ func (r *ArtistRepository) Create(
 	ctx context.Context,
 	artist models.Artist,
 ) (models.Artist, error) {
-
 	query := `
 		INSERT INTO artists (
 			name,
@@ -67,7 +69,6 @@ func (r *ArtistRepository) GetByEmail(
 	ctx context.Context,
 	email string,
 ) (models.Artist, error) {
-
 	query := `
 		SELECT
 			id,
@@ -110,7 +111,6 @@ func (r *ArtistRepository) GetByID(
 	ctx context.Context,
 	id int,
 ) (models.Artist, error) {
-
 	query := `
 		SELECT
 			id,
@@ -148,6 +148,7 @@ func (r *ArtistRepository) GetByID(
 
 	return artist, nil
 }
+
 func (r *ArtistRepository) GetByUserID(
 	ctx context.Context,
 	userID int,
@@ -191,6 +192,7 @@ func (r *ArtistRepository) GetByUserID(
 
 	return artist, nil
 }
+
 func (r *ArtistRepository) CreateForUser(
 	ctx context.Context,
 	user models.User,
@@ -233,6 +235,13 @@ func (r *ArtistRepository) CreateForUser(
 	)
 
 	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) &&
+			pgErr.Code == "23505" {
+			return models.Artist{}, ErrArtistProfileExists
+		}
+
 		return models.Artist{}, err
 	}
 

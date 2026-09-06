@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,81 +36,179 @@ func JWTAuth(
 	jwtService *services.JWTService,
 	next http.Handler,
 ) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := strings.TrimSpace(
-			r.Header.Get("Authorization"),
-		)
+	return http.HandlerFunc(
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+			authHeader := strings.TrimSpace(
+				r.Header.Get("Authorization"),
+			)
 
-		if authHeader == "" {
-			writeAuthError(
+			if authHeader == "" {
+				writeAuthError(
+					w,
+					http.StatusUnauthorized,
+					"AUTHENTICATION_REQUIRED",
+					"authorization token is required",
+				)
+				return
+			}
+
+			parts := strings.Fields(
+				authHeader,
+			)
+
+			if len(parts) != 2 ||
+				!strings.EqualFold(
+					parts[0],
+					"Bearer",
+				) ||
+				parts[1] == "" {
+
+				writeAuthError(
+					w,
+					http.StatusUnauthorized,
+					"INVALID_AUTHORIZATION_HEADER",
+					"authorization header must use Bearer token",
+				)
+				return
+			}
+
+			identity, err :=
+				jwtService.ValidateIdentity(
+					parts[1],
+				)
+
+			if err != nil {
+				writeAuthError(
+					w,
+					http.StatusUnauthorized,
+					"INVALID_TOKEN",
+					"invalid or expired authentication token",
+				)
+				return
+			}
+
+			ctx := r.Context()
+
+			if identity.UserID > 0 {
+				SetUserID(
+					ctx,
+					strconv.Itoa(
+						identity.UserID,
+					),
+				)
+
+				ctx = context.WithValue(
+					ctx,
+					userIDKey,
+					identity.UserID,
+				)
+			}
+
+			// Temporary support for old artist JWTs.
+			if identity.ArtistID > 0 {
+				SetUserID(
+					ctx,
+					strconv.Itoa(
+						identity.ArtistID,
+					),
+				)
+
+				ctx = context.WithValue(
+					ctx,
+					artistIDKey,
+					identity.ArtistID,
+				)
+			}
+
+			next.ServeHTTP(
 				w,
-				http.StatusUnauthorized,
-				"AUTHENTICATION_REQUIRED",
-				"authorization token is required",
+				r.WithContext(ctx),
 			)
-			return
-		}
+		},
+	)
+}
 
-		parts := strings.Fields(authHeader)
+// RequireVerifiedUser ensures that the authenticated user has
+// verified ownership of their email address.
+//
+// This middleware must run after JWTAuth.
+func RequireVerifiedUser(
+	userRepo *repository.UserRepository,
+	next http.Handler,
+) http.Handler {
+	return http.HandlerFunc(
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+			userID, ok :=
+				UserIDFromContext(
+					r.Context(),
+				)
 
-		if len(parts) != 2 ||
-			!strings.EqualFold(parts[0], "Bearer") ||
-			parts[1] == "" {
+			if !ok {
+				// Legacy artist tokens do not contain user_id.
+				//
+				// We intentionally do not treat artist_id as user_id.
+				// Those are separate identities and their numeric values
+				// must never be assumed to match.
+				writeAuthError(
+					w,
+					http.StatusUnauthorized,
+					"USER_AUTHENTICATION_REQUIRED",
+					"a user authentication token is required for this action",
+				)
+				return
+			}
 
-			writeAuthError(
+			user, err :=
+				userRepo.GetByID(
+					r.Context(),
+					userID,
+				)
+
+			if err != nil {
+				if errors.Is(
+					err,
+					pgx.ErrNoRows,
+				) {
+					writeAuthError(
+						w,
+						http.StatusUnauthorized,
+						"USER_NOT_FOUND",
+						"authenticated user could not be found",
+					)
+					return
+				}
+
+				writeAuthError(
+					w,
+					http.StatusInternalServerError,
+					"INTERNAL_ERROR",
+					"failed to verify user account",
+				)
+				return
+			}
+
+			if !user.EmailVerified {
+				writeAuthError(
+					w,
+					http.StatusForbidden,
+					"EMAIL_VERIFICATION_REQUIRED",
+					"verify your email address before performing this action",
+				)
+				return
+			}
+
+			next.ServeHTTP(
 				w,
-				http.StatusUnauthorized,
-				"INVALID_AUTHORIZATION_HEADER",
-				"authorization header must use Bearer token",
+				r,
 			)
-			return
-		}
-
-		identity, err := jwtService.ValidateIdentity(parts[1])
-		if err != nil {
-			writeAuthError(
-				w,
-				http.StatusUnauthorized,
-				"INVALID_TOKEN",
-				"invalid or expired authentication token",
-			)
-			return
-		}
-
-		ctx := r.Context()
-
-		if identity.UserID > 0 {
-			SetUserID(
-				ctx,
-				strconv.Itoa(identity.UserID),
-			)
-
-			ctx = context.WithValue(
-				ctx,
-				userIDKey,
-				identity.UserID,
-			)
-		}
-
-		// Temporary support for old artist JWTs.
-		if identity.ArtistID > 0 {
-			SetUserID(
-				ctx,
-				strconv.Itoa(identity.ArtistID),
-			)
-
-			ctx = context.WithValue(
-				ctx,
-				artistIDKey,
-				identity.ArtistID,
-			)
-		}
-
-		next.ServeHTTP(
-			w,
-			r.WithContext(ctx),
-		)
-	})
+		},
+	)
 }
 
 // RequireArtist converts the authenticated user identity into an artist
@@ -120,63 +219,89 @@ func RequireArtist(
 	artistRepo *repository.ArtistRepository,
 	next http.Handler,
 ) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Temporary legacy compatibility.
-		if _, ok := ArtistIDFromContext(r.Context()); ok {
-			next.ServeHTTP(w, r)
-			return
-		}
+	return http.HandlerFunc(
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+			// Temporary legacy compatibility.
+			if _, ok :=
+				ArtistIDFromContext(
+					r.Context(),
+				); ok {
 
-		userID, ok := UserIDFromContext(r.Context())
-		if !ok {
-			writeAuthError(
-				w,
-				http.StatusUnauthorized,
-				"AUTHENTICATION_REQUIRED",
-				"user authentication is required",
-			)
-			return
-		}
-
-		artist, err := artistRepo.GetByUserID(
-			r.Context(),
-			userID,
-		)
-		if err != nil {
-			if err == pgx.ErrNoRows {
-				writeAuthError(
+				next.ServeHTTP(
 					w,
-					http.StatusForbidden,
-					"ARTIST_PROFILE_REQUIRED",
-					"an artist profile is required for this action",
+					r,
 				)
 				return
 			}
 
-			writeAuthError(
-				w,
-				http.StatusInternalServerError,
-				"INTERNAL_ERROR",
-				"failed to verify artist profile",
+			userID, ok :=
+				UserIDFromContext(
+					r.Context(),
+				)
+
+			if !ok {
+				writeAuthError(
+					w,
+					http.StatusUnauthorized,
+					"AUTHENTICATION_REQUIRED",
+					"user authentication is required",
+				)
+				return
+			}
+
+			artist, err :=
+				artistRepo.GetByUserID(
+					r.Context(),
+					userID,
+				)
+
+			if err != nil {
+				if errors.Is(
+					err,
+					pgx.ErrNoRows,
+				) {
+					writeAuthError(
+						w,
+						http.StatusForbidden,
+						"ARTIST_PROFILE_REQUIRED",
+						"an artist profile is required for this action",
+					)
+					return
+				}
+
+				writeAuthError(
+					w,
+					http.StatusInternalServerError,
+					"INTERNAL_ERROR",
+					"failed to verify artist profile",
+				)
+				return
+			}
+
+			ctx := context.WithValue(
+				r.Context(),
+				artistIDKey,
+				artist.ID,
 			)
-			return
-		}
 
-		ctx := context.WithValue(
-			r.Context(),
-			artistIDKey,
-			artist.ID,
-		)
-
-		next.ServeHTTP(
-			w,
-			r.WithContext(ctx),
-		)
-	})
+			next.ServeHTTP(
+				w,
+				r.WithContext(ctx),
+			)
+		},
+	)
 }
 
-func UserIDFromContext(ctx context.Context) (int, bool) {
-	userID, ok := ctx.Value(userIDKey).(int)
+func UserIDFromContext(
+	ctx context.Context,
+) (int, bool) {
+	userID, ok :=
+		ctx.Value(
+			userIDKey,
+		).(int)
 
 	if !ok || userID <= 0 {
 		return 0, false
@@ -185,8 +310,13 @@ func UserIDFromContext(ctx context.Context) (int, bool) {
 	return userID, true
 }
 
-func ArtistIDFromContext(ctx context.Context) (int, bool) {
-	artistID, ok := ctx.Value(artistIDKey).(int)
+func ArtistIDFromContext(
+	ctx context.Context,
+) (int, bool) {
+	artistID, ok :=
+		ctx.Value(
+			artistIDKey,
+		).(int)
 
 	if !ok || artistID <= 0 {
 		return 0, false
@@ -208,7 +338,9 @@ func writeAuthError(
 
 	w.WriteHeader(status)
 
-	_ = json.NewEncoder(w).Encode(
+	_ = json.NewEncoder(
+		w,
+	).Encode(
 		authErrorResponse{
 			Error: authAPIError{
 				Code:    code,

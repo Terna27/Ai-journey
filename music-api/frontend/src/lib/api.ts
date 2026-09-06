@@ -5,7 +5,11 @@ import type {
   LoginResponse,
   MeResponse,
   RegisterRequest,
-  User,
+  RegisterResponse,
+  ResendVerificationRequest,
+  ResendVerificationResponse,
+  VerifyEmailRequest,
+  VerifyEmailResponse,
 } from '../types/auth'
 
 import type {
@@ -57,26 +61,62 @@ async function request<T>(
 
 export async function registerUser(
   payload: RegisterRequest,
-): Promise<User> {
-  return request<User>('/auth/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+): Promise<RegisterResponse> {
+  return request<RegisterResponse>(
+    '/auth/register',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  })
+  )
 }
 
 export async function loginUser(
   payload: LoginRequest,
 ): Promise<LoginResponse> {
-  return request<LoginResponse>('/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  return request<LoginResponse>(
+    '/auth/login',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  })
+  )
+}
+
+export async function verifyEmail(
+  payload: VerifyEmailRequest,
+): Promise<VerifyEmailResponse> {
+  return request<VerifyEmailResponse>(
+    '/auth/verify-email',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function resendVerification(
+  payload: ResendVerificationRequest,
+): Promise<ResendVerificationResponse> {
+  return request<ResendVerificationResponse>(
+    '/auth/resend-verification',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
 }
 
 export async function getMe(
@@ -92,12 +132,15 @@ export async function getMe(
 export async function createArtistProfile(
   token: string,
 ): Promise<Artist> {
-  return request<Artist>('/artists/profile', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
+  return request<Artist>(
+    '/artists/profile',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  })
+  )
 }
 
 export async function getMusic(): Promise<Music[]> {
@@ -130,8 +173,15 @@ export async function uploadMusic(
     `${Date.now()}-${payload.audio.name}`,
   )
 
-  formData.append('image', payload.image)
-  formData.append('audio', payload.audio)
+  formData.append(
+    'image',
+    payload.image,
+  )
+
+  formData.append(
+    'audio',
+    payload.audio,
+  )
 
   return request<Music>('/music', {
     method: 'POST',
@@ -140,6 +190,50 @@ export async function uploadMusic(
     },
     body: formData,
   })
+}
+
+
+export async function getLikedMusic(
+  token: string,
+): Promise<Music[]> {
+  return request<Music[]>(
+    '/me/liked-music',
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function likeMusic(
+  musicID: number,
+  token: string,
+): Promise<Music> {
+  return request<Music>(
+    `/music/${musicID}/like`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function unlikeMusic(
+  musicID: number,
+  token: string,
+): Promise<Music> {
+  return request<Music>(
+    `/music/${musicID}/like`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
 }
 
 export { API_BASE_URL }

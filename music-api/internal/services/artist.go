@@ -23,7 +23,9 @@ type ArtistService struct {
 	Repository *repository.ArtistRepository
 }
 
-func NewArtistService(repo *repository.ArtistRepository) *ArtistService {
+func NewArtistService(
+	repo *repository.ArtistRepository,
+) *ArtistService {
 	return &ArtistService{
 		Repository: repo,
 	}
@@ -35,9 +37,10 @@ func (s *ArtistService) Register(
 	email string,
 	password string,
 ) (models.Artist, error) {
-
 	name = strings.TrimSpace(name)
-	email = strings.ToLower(strings.TrimSpace(email))
+	email = strings.ToLower(
+		strings.TrimSpace(email),
+	)
 	password = strings.TrimSpace(password)
 
 	if name == "" {
@@ -56,10 +59,11 @@ func (s *ArtistService) Register(
 		return models.Artist{}, ErrArtistPasswordTooShort
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword(
-		[]byte(password),
-		bcrypt.DefaultCost,
-	)
+	passwordHash, err :=
+		bcrypt.GenerateFromPassword(
+			[]byte(password),
+			bcrypt.DefaultCost,
+		)
 	if err != nil {
 		return models.Artist{}, err
 	}
@@ -70,25 +74,34 @@ func (s *ArtistService) Register(
 		PasswordHash: string(passwordHash),
 	}
 
-	return s.Repository.Create(ctx, artist)
+	return s.Repository.Create(
+		ctx,
+		artist,
+	)
 }
 
 func (s *ArtistService) GetByEmail(
 	ctx context.Context,
 	email string,
 ) (models.Artist, error) {
+	email = strings.ToLower(
+		strings.TrimSpace(email),
+	)
 
-	email = strings.ToLower(strings.TrimSpace(email))
-
-	return s.Repository.GetByEmail(ctx, email)
+	return s.Repository.GetByEmail(
+		ctx,
+		email,
+	)
 }
 
 func (s *ArtistService) GetByID(
 	ctx context.Context,
 	id int,
 ) (models.Artist, error) {
-
-	return s.Repository.GetByID(ctx, id)
+	return s.Repository.GetByID(
+		ctx,
+		id,
+	)
 }
 
 func (s *ArtistService) CreateForUser(
@@ -99,19 +112,39 @@ func (s *ArtistService) CreateForUser(
 		return models.Artist{}, ErrUnauthorized
 	}
 
-	_, err := s.Repository.GetByUserID(ctx, user.ID)
+	_, err := s.Repository.GetByUserID(
+		ctx,
+		user.ID,
+	)
+
 	if err == nil {
-		return models.Artist{}, ErrArtistProfileExists
+		return models.Artist{},
+			ErrArtistProfileExists
 	}
 
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return models.Artist{}, err
 	}
 
-	return s.Repository.CreateForUser(
-		ctx,
-		user,
-	)
+	artist, err :=
+		s.Repository.CreateForUser(
+			ctx,
+			user,
+		)
+
+	if err != nil {
+		if errors.Is(
+			err,
+			repository.ErrArtistProfileExists,
+		) {
+			return models.Artist{},
+				ErrArtistProfileExists
+		}
+
+		return models.Artist{}, err
+	}
+
+	return artist, nil
 }
 
 func (s *ArtistService) GetByUserID(

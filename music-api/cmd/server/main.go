@@ -25,7 +25,10 @@ func main() {
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load configuration: %v", err)
+		log.Fatalf(
+			"failed to load configuration: %v",
+			err,
+		)
 	}
 
 	// =========================
@@ -39,7 +42,10 @@ func main() {
 		cfg.DatabaseURL,
 	)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		log.Fatalf(
+			"failed to connect to database: %v",
+			err,
+		)
 	}
 	defer db.Close()
 
@@ -47,39 +53,63 @@ func main() {
 	// REPOSITORIES
 	// =========================
 
-	musicRepo := repository.NewMusicRepository(
-		db.Pool,
-	)
+	musicRepo :=
+		repository.NewMusicRepository(
+			db.Pool,
+		)
 
-	artistRepo := repository.NewArtistRepository(
-		db.Pool,
-	)
+	artistRepo :=
+		repository.NewArtistRepository(
+			db.Pool,
+		)
 
-	userRepo := repository.NewUserRepository(
-		db.Pool,
-	)
+	userRepo :=
+		repository.NewUserRepository(
+			db.Pool,
+		)
+
+	userMusicLikeRepo :=
+		repository.NewUserMusicLikeRepository(
+			db.Pool,
+		)
+
+	emailVerificationRepo :=
+		repository.NewEmailVerificationRepository(
+			db.Pool,
+		)
 
 	// =========================
 	// SERVICES
 	// =========================
 
-	musicService := services.NewMusicService(
-		musicRepo,
-	)
+	musicService :=
+		services.NewMusicService(
+			musicRepo,
+			userMusicLikeRepo,
+		)
 
-	artistService := services.NewArtistService(
-		artistRepo,
-	)
+	artistService :=
+		services.NewArtistService(
+			artistRepo,
+		)
 
-	userService := services.NewUserService(
-		userRepo,
-	)
+	userService :=
+		services.NewUserService(
+			userRepo,
+		)
 
-	jwtService := services.NewJWTService(
-		cfg.JWTSecret,
-	)
+	jwtService :=
+		services.NewJWTService(
+			cfg.JWTSecret,
+		)
 
-	cloudinaryService, err := services.NewCloudinaryService()
+	// =========================
+	// CLOUDINARY
+	// =========================
+
+	cloudinaryService, err :=
+		services.NewCloudinaryService()
+
 	if err != nil {
 		log.Fatalf(
 			"failed to initialize Cloudinary: %v",
@@ -88,20 +118,48 @@ func main() {
 	}
 
 	// =========================
+	// EMAIL
+	// =========================
+
+	emailService, err :=
+		services.NewEmailService(
+			cfg.ResendAPIKey,
+			cfg.EmailFrom,
+		)
+
+	if err != nil {
+		log.Fatalf(
+			"failed to initialize email service: %v",
+			err,
+		)
+	}
+
+	emailVerificationService :=
+		services.NewEmailVerificationService(
+			emailVerificationRepo,
+			userService,
+			emailService,
+			cfg.FrontendURL,
+		)
+
+	// =========================
 	// HANDLERS
 	// =========================
 
-	musicHandler := handler.NewMusicHandler(
-		musicService,
-		artistService,
-		userService,
-		jwtService,
-		cloudinaryService,
-	)
+	musicHandler :=
+		handler.NewMusicHandler(
+			musicService,
+			artistService,
+			userService,
+			jwtService,
+			cloudinaryService,
+			emailVerificationService,
+		)
 
-	healthHandler := handler.NewHealthHandler(
-		db.Pool,
-	)
+	healthHandler :=
+		handler.NewHealthHandler(
+			db.Pool,
+		)
 
 	// =========================
 	// ROUTER
@@ -124,13 +182,8 @@ func main() {
 	)
 
 	// =========================
-	// API V1 - AUTH
+	// AUTH
 	// =========================
-	//
-	// Unified authentication.
-	//
-	// Every person registers as a user first.
-	//
 
 	mux.HandleFunc(
 		"POST /api/v1/auth/register",
@@ -141,6 +194,20 @@ func main() {
 		"POST /api/v1/auth/login",
 		musicHandler.LoginUser,
 	)
+
+	mux.HandleFunc(
+		"POST /api/v1/auth/verify-email",
+		musicHandler.VerifyEmail,
+	)
+
+	mux.HandleFunc(
+		"POST /api/v1/auth/resend-verification",
+		musicHandler.ResendVerification,
+	)
+
+	// =========================
+	// CURRENT USER
+	// =========================
 
 	mux.Handle(
 		"GET /api/v1/me",
@@ -153,27 +220,46 @@ func main() {
 	)
 
 	// =========================
-	// API V1 - ARTIST PROFILE
+	// LIKED MUSIC LIBRARY
 	// =========================
 	//
-	// Authenticated users can upgrade their existing
-	// account by creating an artist profile.
-	//
-	// RequireArtist is intentionally NOT used here.
+	// Requirements:
+	// 1. Authenticated user
+	// 2. Verified email
 	//
 
 	mux.Handle(
-		"POST /api/v1/artists/profile",
+		"GET /api/v1/me/liked-music",
 		middleware.JWTAuth(
 			jwtService,
-			http.HandlerFunc(
-				musicHandler.CreateArtistProfile,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					musicHandler.GetLikedMusic,
+				),
 			),
 		),
 	)
 
 	// =========================
-	// API V1 - PUBLIC MUSIC
+	// ARTIST PROFILE
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/artists/profile",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					musicHandler.CreateArtistProfile,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PUBLIC MUSIC
 	// =========================
 
 	mux.HandleFunc(
@@ -187,95 +273,115 @@ func main() {
 	)
 
 	// =========================
-	// API V1 - CREATE MUSIC
+	// CREATE MUSIC
 	// =========================
-	//
-	// Requires:
-	//
-	// 1. Valid user JWT
-	// 2. Artist profile
-	//
 
 	mux.Handle(
 		"POST /api/v1/music",
 		middleware.JWTAuth(
 			jwtService,
-			middleware.RequireArtist(
-				artistRepo,
-				http.HandlerFunc(
-					musicHandler.CreateMusic,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						musicHandler.CreateMusic,
+					),
 				),
 			),
 		),
 	)
 
 	// =========================
-	// API V1 - UPDATE MUSIC
+	// UPDATE MUSIC
 	// =========================
 
 	mux.Handle(
 		"PUT /api/v1/music/{id}",
 		middleware.JWTAuth(
 			jwtService,
-			middleware.RequireArtist(
-				artistRepo,
-				http.HandlerFunc(
-					musicHandler.UpdateMusic,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						musicHandler.UpdateMusic,
+					),
 				),
 			),
 		),
 	)
 
 	// =========================
-	// API V1 - PATCH MUSIC
+	// PATCH MUSIC
 	// =========================
 
 	mux.Handle(
 		"PATCH /api/v1/music/{id}",
 		middleware.JWTAuth(
 			jwtService,
-			middleware.RequireArtist(
-				artistRepo,
-				http.HandlerFunc(
-					musicHandler.PatchMusic,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						musicHandler.PatchMusic,
+					),
 				),
 			),
 		),
 	)
 
 	// =========================
-	// API V1 - DELETE MUSIC
+	// DELETE MUSIC
 	// =========================
 
 	mux.Handle(
 		"DELETE /api/v1/music/{id}",
 		middleware.JWTAuth(
 			jwtService,
-			middleware.RequireArtist(
-				artistRepo,
-				http.HandlerFunc(
-					musicHandler.DeleteMusic,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						musicHandler.DeleteMusic,
+					),
 				),
 			),
 		),
 	)
 
 	// =========================
-	// API V1 - LIKE MUSIC
+	// LIKE MUSIC
 	// =========================
-	//
-	// Any authenticated user should eventually be
-	// able to like music.
-	//
-	// Artist capability is NOT required.
-	//
 
 	mux.Handle(
 		"POST /api/v1/music/{id}/like",
 		middleware.JWTAuth(
 			jwtService,
-			http.HandlerFunc(
-				musicHandler.LikeMusic,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					musicHandler.LikeMusic,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// UNLIKE MUSIC
+	// =========================
+
+	mux.Handle(
+		"DELETE /api/v1/music/{id}/like",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					musicHandler.UnlikeMusic,
+				),
 			),
 		),
 	)
@@ -283,9 +389,6 @@ func main() {
 	// =========================
 	// LEGACY PUBLIC MUSIC
 	// =========================
-	//
-	// Retained temporarily for compatibility.
-	//
 
 	mux.HandleFunc(
 		"GET /music",
@@ -301,24 +404,25 @@ func main() {
 	// CORS
 	// =========================
 
-	corsConfig := middleware.CORSConfig{
-		AllowedOrigins: cfg.CORSAllowedOrigins,
+	corsConfig :=
+		middleware.CORSConfig{
+			AllowedOrigins: cfg.CORSAllowedOrigins,
 
-		AllowedMethods: []string{
-			http.MethodGet,
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodPatch,
-			http.MethodDelete,
-			http.MethodOptions,
-		},
+			AllowedMethods: []string{
+				http.MethodGet,
+				http.MethodPost,
+				http.MethodPut,
+				http.MethodPatch,
+				http.MethodDelete,
+				http.MethodOptions,
+			},
 
-		AllowedHeaders: []string{
-			"Authorization",
-			"Content-Type",
-			"X-Request-ID",
-		},
-	}
+			AllowedHeaders: []string{
+				"Authorization",
+				"Content-Type",
+				"X-Request-ID",
+			},
+		}
 
 	// =========================
 	// GLOBAL MIDDLEWARE
@@ -331,9 +435,10 @@ func main() {
 		rootHandler,
 	)
 
-	rootHandler = middleware.RequestLogger(
-		rootHandler,
-	)
+	rootHandler =
+		middleware.RequestLogger(
+			rootHandler,
+		)
 
 	// =========================
 	// HTTP SERVER
@@ -370,7 +475,7 @@ func main() {
 	}()
 
 	// =========================
-	// SHUTDOWN SIGNALS
+	// SHUTDOWN
 	// =========================
 
 	shutdownSignals := make(
@@ -404,10 +509,11 @@ func main() {
 			sig,
 		)
 
-		shutdownCtx, cancel := context.WithTimeout(
-			context.Background(),
-			cfg.ShutdownTimeout,
-		)
+		shutdownCtx, cancel :=
+			context.WithTimeout(
+				context.Background(),
+				cfg.ShutdownTimeout,
+			)
 		defer cancel()
 
 		if err := server.Shutdown(
@@ -419,7 +525,9 @@ func main() {
 				err,
 			)
 
-			if closeErr := server.Close(); closeErr != nil {
+			if closeErr :=
+				server.Close(); closeErr != nil {
+
 				log.Printf(
 					"forced server close failed: %v",
 					closeErr,

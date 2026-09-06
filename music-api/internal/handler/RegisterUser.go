@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"music-api/internal/models"
 	"music-api/internal/services"
 )
 
@@ -13,6 +14,12 @@ type RegisterUserRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type RegisterUserResponse struct {
+	User                  models.User `json:"user"`
+	VerificationEmailSent bool        `json:"verification_email_sent"`
+	Message               string      `json:"message"`
 }
 
 func (h *MusicHandler) RegisterUser(
@@ -53,10 +60,22 @@ func (h *MusicHandler) RegisterUser(
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, services.ErrUserNameRequired),
-			errors.Is(err, services.ErrUserEmailRequired),
-			errors.Is(err, services.ErrUserPasswordRequired),
-			errors.Is(err, services.ErrUserPasswordTooShort):
+		case errors.Is(
+			err,
+			services.ErrUserNameRequired,
+		),
+			errors.Is(
+				err,
+				services.ErrUserEmailRequired,
+			),
+			errors.Is(
+				err,
+				services.ErrUserPasswordRequired,
+			),
+			errors.Is(
+				err,
+				services.ErrUserPasswordTooShort,
+			):
 
 			WriteError(
 				w,
@@ -65,8 +84,22 @@ func (h *MusicHandler) RegisterUser(
 				err.Error(),
 			)
 
+		case errors.Is(
+			err,
+			services.ErrUserAlreadyExists,
+		):
+			WriteError(
+				w,
+				http.StatusConflict,
+				"USER_ALREADY_EXISTS",
+				"an account with this email already exists",
+			)
+
 		default:
-			log.Printf("RegisterUser failed: %v", err)
+			log.Printf(
+				"RegisterUser failed: %v",
+				err,
+			)
 
 			WriteError(
 				w,
@@ -79,9 +112,30 @@ func (h *MusicHandler) RegisterUser(
 		return
 	}
 
+	verificationEmailSent := true
+	message := "account created; check your email to verify your address"
+
+	if err := h.EmailVerificationService.SendVerification(
+		r.Context(),
+		user,
+	); err != nil {
+		verificationEmailSent = false
+		message = "account created, but the verification email could not be sent; request another verification email"
+
+		log.Printf(
+			"RegisterUser: verification email failed for user %d: %v",
+			user.ID,
+			err,
+		)
+	}
+
 	WriteJSON(
 		w,
 		http.StatusCreated,
-		user,
+		RegisterUserResponse{
+			User:                  user,
+			VerificationEmailSent: verificationEmailSent,
+			Message:               message,
+		},
 	)
 }

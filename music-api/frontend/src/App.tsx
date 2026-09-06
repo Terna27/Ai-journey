@@ -8,11 +8,13 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 
 import HomePage from './pages/HomePage'
+import LikedMusicPage from './pages/LikedMusicPage'
 import LoginPage from './pages/LoginPage'
 import MyMusicPage from './pages/MyMusicPage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
 import UploadPage from './pages/UploadPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 
 import './App.css'
 
@@ -35,10 +37,20 @@ function App() {
           element={<RegisterPage />}
         />
 
+        <Route
+          path="/verify-email"
+          element={<VerifyEmailPage />}
+        />
+
         <Route element={<ProtectedRoute />}>
           <Route
             path="/profile"
             element={<ProfilePage />}
+          />
+
+          <Route
+            path="/liked"
+            element={<LikedMusicPage />}
           />
         </Route>
 

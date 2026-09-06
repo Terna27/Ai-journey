@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import { resendVerification } from '../lib/api'
 
 type ProfileLocationState = {
   message?: string
@@ -37,7 +38,19 @@ function ProfilePage() {
     setIsCreatingArtist,
   ] = useState(false)
 
+  const [
+    isResendingVerification,
+    setIsResendingVerification,
+  ] = useState(false)
+
   async function handleBecomeArtist() {
+    if (!user?.email_verified) {
+      setError(
+        'Verify your email address before creating an artist profile.',
+      )
+      return
+    }
+
     setError('')
     setSuccess('')
     setIsCreatingArtist(true)
@@ -56,6 +69,35 @@ function ProfilePage() {
       )
     } finally {
       setIsCreatingArtist(false)
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!user?.email) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setIsResendingVerification(true)
+
+    try {
+      const result =
+        await resendVerification({
+          email: user.email,
+        })
+
+      setSuccess(
+        result.message,
+      )
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to send verification email.',
+      )
+    } finally {
+      setIsResendingVerification(false)
     }
   }
 
@@ -109,6 +151,47 @@ function ProfilePage() {
         <h3>{user?.name}</h3>
 
         <p>{user?.email}</p>
+
+        {user?.email_verified ? (
+          <div
+            className="status-message success-message"
+            role="status"
+          >
+            Email verified
+          </div>
+        ) : (
+          <>
+            <div
+              className="form-error"
+              role="alert"
+            >
+              Your email address has not
+              been verified yet.
+            </div>
+
+            <p>
+              Verify your email before
+              creating an artist profile or
+              using protected account
+              features.
+            </p>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={
+                handleResendVerification
+              }
+              disabled={
+                isResendingVerification
+              }
+            >
+              {isResendingVerification
+                ? 'Sending verification email...'
+                : 'Resend verification email'}
+            </button>
+          </>
+        )}
       </section>
 
       {isArtist && artist ? (
@@ -149,23 +232,49 @@ function ProfilePage() {
 
           <h3>Become an Artist</h3>
 
-          <p>
-            Your current account is a
-            listener account. Create an
-            artist profile when you are
-            ready to publish your own music.
-          </p>
+          {user?.email_verified ? (
+            <>
+              <p>
+                Your current account is a
+                listener account. Create an
+                artist profile when you are
+                ready to publish your own
+                music.
+              </p>
 
-          <button
-            type="button"
-            className="primary-button"
-            onClick={handleBecomeArtist}
-            disabled={isCreatingArtist}
-          >
-            {isCreatingArtist
-              ? 'Creating artist profile...'
-              : 'Become an Artist'}
-          </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={
+                  handleBecomeArtist
+                }
+                disabled={
+                  isCreatingArtist
+                }
+              >
+                {isCreatingArtist
+                  ? 'Creating artist profile...'
+                  : 'Become an Artist'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p>
+                You need to verify your
+                email address before you
+                can create an artist
+                profile.
+              </p>
+
+              <button
+                type="button"
+                className="primary-button"
+                disabled
+              >
+                Verify email first
+              </button>
+            </>
+          )}
         </section>
       )}
     </>

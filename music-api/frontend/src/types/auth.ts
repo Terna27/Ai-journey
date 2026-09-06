@@ -2,6 +2,8 @@ export type User = {
   id: number
   name: string
   email: string
+  email_verified: boolean
+  email_verified_at: string | null
   created_at?: string
   updated_at?: string
 }
@@ -21,6 +23,12 @@ export type RegisterRequest = {
   password: string
 }
 
+export type RegisterResponse = {
+  user: User
+  verification_email_sent: boolean
+  message: string
+}
+
 export type LoginRequest = {
   email: string
   password: string
@@ -34,6 +42,22 @@ export type LoginResponse = {
 export type MeResponse = {
   user: User
   artist: Artist | null
+}
+
+export type VerifyEmailRequest = {
+  token: string
+}
+
+export type VerifyEmailResponse = {
+  message: string
+}
+
+export type ResendVerificationRequest = {
+  email: string
+}
+
+export type ResendVerificationResponse = {
+  message: string
 }
 
 export type APIErrorResponse = {

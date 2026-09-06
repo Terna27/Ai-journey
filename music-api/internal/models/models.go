@@ -30,10 +30,36 @@ type Artist struct {
 }
 
 type User struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID              int        `json:"id"`
+	Name            string     `json:"name"`
+	Email           string     `json:"email"`
+	PasswordHash    string     `json:"-"`
+	EmailVerified   bool       `json:"email_verified"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type EmailVerificationToken struct {
+	ID        int64      `json:"id"`
+	UserID    int        `json:"user_id"`
+	TokenHash string     `json:"-"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type Playlist struct {
+	ID          int64     `json:"id"`
+	UserID      int       `json:"user_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsPublic    bool      `json:"is_public"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type PlaylistDetails struct {
+	Playlist Playlist `json:"playlist"`
+	Tracks   []Music  `json:"tracks"`
 }

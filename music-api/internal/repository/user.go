@@ -7,14 +7,21 @@ import (
 	"music-api/internal/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var ErrUserEmailExists = errors.New(
+	"user email already exists",
 )
 
 type UserRepository struct {
 	DB *pgxpool.Pool
 }
 
-func NewUserRepository(db *pgxpool.Pool) *UserRepository {
+func NewUserRepository(
+	db *pgxpool.Pool,
+) *UserRepository {
 	return &UserRepository{
 		DB: db,
 	}
@@ -36,6 +43,8 @@ func (r *UserRepository) Create(
 			name,
 			email,
 			password_hash,
+			email_verified,
+			email_verified_at,
 			created_at,
 			updated_at
 	`
@@ -51,11 +60,21 @@ func (r *UserRepository) Create(
 		&user.Name,
 		&user.Email,
 		&user.PasswordHash,
+		&user.EmailVerified,
+		&user.EmailVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 
 	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) &&
+			pgErr.Code == "23505" {
+			return models.User{},
+				ErrUserEmailExists
+		}
+
 		return models.User{}, err
 	}
 
@@ -72,6 +91,8 @@ func (r *UserRepository) GetByEmail(
 			name,
 			email,
 			password_hash,
+			email_verified,
+			email_verified_at,
 			created_at,
 			updated_at
 		FROM users
@@ -89,13 +110,16 @@ func (r *UserRepository) GetByEmail(
 		&user.Name,
 		&user.Email,
 		&user.PasswordHash,
+		&user.EmailVerified,
+		&user.EmailVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return models.User{}, pgx.ErrNoRows
+			return models.User{},
+				pgx.ErrNoRows
 		}
 
 		return models.User{}, err
@@ -114,6 +138,8 @@ func (r *UserRepository) GetByID(
 			name,
 			email,
 			password_hash,
+			email_verified,
+			email_verified_at,
 			created_at,
 			updated_at
 		FROM users
@@ -131,17 +157,49 @@ func (r *UserRepository) GetByID(
 		&user.Name,
 		&user.Email,
 		&user.PasswordHash,
+		&user.EmailVerified,
+		&user.EmailVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return models.User{}, pgx.ErrNoRows
+			return models.User{},
+				pgx.ErrNoRows
 		}
 
 		return models.User{}, err
 	}
 
 	return user, nil
+}
+
+func (r *UserRepository) MarkEmailVerified(
+	ctx context.Context,
+	userID int,
+) error {
+	query := `
+		UPDATE users
+		SET
+			email_verified = TRUE,
+			email_verified_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $1
+	`
+
+	commandTag, err := r.DB.Exec(
+		ctx,
+		query,
+		userID,
+	)
+	if err != nil {
+		return err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
 }

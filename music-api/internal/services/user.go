@@ -16,6 +16,7 @@ var (
 	ErrUserEmailRequired    = errors.New("user email is required")
 	ErrUserPasswordRequired = errors.New("user password is required")
 	ErrUserPasswordTooShort = errors.New("user password must be at least 8 characters")
+	ErrUserAlreadyExists    = errors.New("an account with this email already exists")
 )
 
 type UserService struct {
@@ -68,21 +69,54 @@ func (s *UserService) Register(
 		PasswordHash: string(passwordHash),
 	}
 
-	return s.Repository.Create(ctx, user)
+	createdUser, err := s.Repository.Create(
+		ctx,
+		user,
+	)
+	if err != nil {
+		if errors.Is(
+			err,
+			repository.ErrUserEmailExists,
+		) {
+			return models.User{}, ErrUserAlreadyExists
+		}
+
+		return models.User{}, err
+	}
+
+	return createdUser, nil
 }
 
 func (s *UserService) GetByEmail(
 	ctx context.Context,
 	email string,
 ) (models.User, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
+	email = strings.ToLower(
+		strings.TrimSpace(email),
+	)
 
-	return s.Repository.GetByEmail(ctx, email)
+	return s.Repository.GetByEmail(
+		ctx,
+		email,
+	)
 }
 
 func (s *UserService) GetByID(
 	ctx context.Context,
 	id int,
 ) (models.User, error) {
-	return s.Repository.GetByID(ctx, id)
+	return s.Repository.GetByID(
+		ctx,
+		id,
+	)
+}
+
+func (s *UserService) MarkEmailVerified(
+	ctx context.Context,
+	userID int,
+) error {
+	return s.Repository.MarkEmailVerified(
+		ctx,
+		userID,
+	)
 }
