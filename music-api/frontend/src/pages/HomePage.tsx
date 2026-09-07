@@ -14,6 +14,9 @@ import { usePlayer } from '../context/PlayerContext'
 import { getMusic } from '../lib/api'
 import type { Music } from '../types/music'
 
+import AddToPlaylistButton from '../components/music/AddToPlaylistButton'
+import AddToQueueButton from '../components/music/AddToQueueButton'
+
 function HomePage() {
   const navigate = useNavigate()
 
@@ -98,7 +101,9 @@ function HomePage() {
       return
     }
 
-    playTrack(track)
+    // Playing from the grid queues the visible
+    // collection so Next/Previous walk it.
+    playTrack(track, featuredMusic)
   }
 
   return (
@@ -356,9 +361,23 @@ function HomePage() {
                             )}
                         </div>
 
-                        <span className="genre-pill">
-                          {track.genre}
-                        </span>
+                        <div className="music-card-actions">
+                          {isAuthenticated && (
+                            <AddToQueueButton
+                              track={track}
+                            />
+                          )}
+
+                          {isAuthenticated && (
+                            <AddToPlaylistButton
+                              track={track}
+                            />
+                          )}
+
+                          <span className="genre-pill">
+                            {track.genre}
+                          </span>
+                        </div>
                       </div>
                     </article>
                   )

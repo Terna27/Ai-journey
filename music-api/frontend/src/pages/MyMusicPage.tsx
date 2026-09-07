@@ -182,7 +182,12 @@ function MyMusicPage() {
                             : `Play ${track.song_title}`
                         }
                         onClick={() =>
-                          playTrack(track)
+                          // Playing from My Music queues the
+                          // artist's own track list.
+                          playTrack(
+                            track,
+                            myMusic,
+                          )
                         }
                       >
                         {isThisTrackPlaying

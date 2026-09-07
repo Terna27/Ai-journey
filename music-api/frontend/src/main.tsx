@@ -6,6 +6,7 @@ import { LibraryProvider } from './context/LibraryContext'
 import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext'
 import { PlayerProvider } from './context/PlayerContext'
+import { PlaylistProvider } from './context/PlaylistContext'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -13,9 +14,11 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <AuthProvider>
         <LibraryProvider>
-          <PlayerProvider>
-            <App />
-          </PlayerProvider>
+          <PlaylistProvider>
+            <PlayerProvider>
+              <App />
+            </PlayerProvider>
+          </PlaylistProvider>
         </LibraryProvider>
       </AuthProvider>
     </BrowserRouter>

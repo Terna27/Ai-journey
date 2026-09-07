@@ -73,6 +73,11 @@ func main() {
 			db.Pool,
 		)
 
+	playlistRepo :=
+		repository.NewPlaylistRepository(
+			db.Pool,
+		)
+
 	emailVerificationRepo :=
 		repository.NewEmailVerificationRepository(
 			db.Pool,
@@ -86,6 +91,11 @@ func main() {
 		services.NewMusicService(
 			musicRepo,
 			userMusicLikeRepo,
+		)
+
+	playlistService :=
+		services.NewPlaylistService(
+			playlistRepo,
 		)
 
 	artistService :=
@@ -156,6 +166,11 @@ func main() {
 			emailVerificationService,
 		)
 
+	playlistHandler :=
+		handler.NewPlaylistHandler(
+			playlistService,
+		)
+
 	healthHandler :=
 		handler.NewHealthHandler(
 			db.Pool,
@@ -222,11 +237,6 @@ func main() {
 	// =========================
 	// LIKED MUSIC LIBRARY
 	// =========================
-	//
-	// Requirements:
-	// 1. Authenticated user
-	// 2. Verified email
-	//
 
 	mux.Handle(
 		"GET /api/v1/me/liked-music",
@@ -381,6 +391,101 @@ func main() {
 				userRepo,
 				http.HandlerFunc(
 					musicHandler.UnlikeMusic,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PLAYLISTS
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/playlists",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.CreatePlaylist,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/me/playlists",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.GetMyPlaylists,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/playlists/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.GetPlaylist,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PUT /api/v1/playlists/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.UpdatePlaylist,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/playlists/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.DeletePlaylist,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/playlists/{id}/tracks/{musicID}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.AddTrack,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/playlists/{id}/tracks/{musicID}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playlistHandler.RemoveTrack,
 				),
 			),
 		),

@@ -5,6 +5,9 @@ import { usePlayer } from '../context/PlayerContext'
 
 import type { Music } from '../types/music'
 
+import AddToPlaylistButton from '../components/music/AddToPlaylistButton'
+import AddToQueueButton from '../components/music/AddToQueueButton'
+
 function LikedMusicPage() {
   const {
     likedMusic,
@@ -152,13 +155,26 @@ function LikedMusicPage() {
                           !track.audio_url
                         }
                         onClick={() =>
-                          playTrack(track)
+                          // Playing from the liked list queues
+                          // the full liked collection.
+                          playTrack(
+                            track,
+                            likedMusic,
+                          )
                         }
                       >
                         {isThisTrackPlaying
                           ? 'Pause'
                           : 'Play'}
                       </button>
+
+                      <AddToQueueButton
+                        track={track}
+                      />
+
+                      <AddToPlaylistButton
+                        track={track}
+                      />
 
                       <button
                         type="button"

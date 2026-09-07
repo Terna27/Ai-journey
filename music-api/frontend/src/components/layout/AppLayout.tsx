@@ -59,6 +59,24 @@ function AppLayout() {
             Search
           </NavLink>
 
+          {isAuthenticated && (
+            <>
+              <NavLink
+                to="/liked"
+                className={navClass}
+              >
+                Liked Songs
+              </NavLink>
+
+              <NavLink
+                to="/playlists"
+                className={navClass}
+              >
+                Playlists
+              </NavLink>
+            </>
+          )}
+
           {isArtist && (
             <>
               <NavLink
@@ -106,6 +124,20 @@ function AppLayout() {
 
         {isAuthenticated ? (
           <>
+            <NavLink
+              to="/liked"
+              className={navClass}
+            >
+              Liked
+            </NavLink>
+
+            <NavLink
+              to="/playlists"
+              className={navClass}
+            >
+              Playlists
+            </NavLink>
+
             {isArtist && (
               <>
                 <NavLink

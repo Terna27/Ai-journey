@@ -11,6 +11,8 @@ import HomePage from './pages/HomePage'
 import LikedMusicPage from './pages/LikedMusicPage'
 import LoginPage from './pages/LoginPage'
 import MyMusicPage from './pages/MyMusicPage'
+import PlaylistDetailsPage from './pages/PlaylistDetailsPage'
+import PlaylistsPage from './pages/PlaylistsPage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
 import UploadPage from './pages/UploadPage'
@@ -51,6 +53,18 @@ function App() {
           <Route
             path="/liked"
             element={<LikedMusicPage />}
+          />
+
+          <Route
+            path="/playlists"
+            element={<PlaylistsPage />}
+          />
+
+          <Route
+            path="/playlists/:id"
+            element={
+              <PlaylistDetailsPage />
+            }
           />
         </Route>
 
