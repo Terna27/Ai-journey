@@ -254,6 +254,10 @@ func main() {
 	// =========================
 	// ARTIST PROFILE
 	// =========================
+	mux.HandleFunc(
+		"GET /api/v1/artists/{id}",
+		musicHandler.GetArtistProfile,
+	)
 
 	mux.Handle(
 		"POST /api/v1/artists/profile",

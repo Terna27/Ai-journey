@@ -68,6 +68,13 @@ func (f *fakeRepo) GetByID(
 	return f.getByIDResult, f.getByIDErr
 }
 
+func (f *fakeRepo) GetByArtistID(
+	ctx context.Context,
+	artistID int,
+) ([]models.Music, error) {
+	return []models.Music{}, nil
+}
+
 func (f *fakeRepo) Update(
 	ctx context.Context,
 	id int,

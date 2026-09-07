@@ -383,6 +383,13 @@ func newOwnershipTestServer(
 	return mux, repo, jwtService
 }
 
+func (r *ownershipTestRepo) GetByArtistID(
+	ctx context.Context,
+	artistID int,
+) ([]models.Music, error) {
+	return []models.Music{}, nil
+}
+
 func generateOwnershipTestToken(
 	t *testing.T,
 	jwtService *services.JWTService,

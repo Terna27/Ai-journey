@@ -472,3 +472,75 @@ func (r *MusicRepository) RecordLike(
 
 	return music, nil
 }
+
+// GetByArtistID returns all music owned by a specific artist.
+// Artist ownership is determined by music.artist_id, never artist_name.
+func (r *MusicRepository) GetByArtistID(
+	ctx context.Context,
+	artistID int,
+) ([]models.Music, error) {
+	query := `
+		SELECT
+			id,
+			artist_id,
+			artist_name,
+			song_title,
+			genre,
+			COALESCE(image_url, ''),
+			COALESCE(image_public_id, ''),
+			COALESCE(audio_url, ''),
+			COALESCE(audio_public_id, ''),
+			COALESCE(audio_key, ''),
+			likes,
+			loves,
+			rating,
+			date_posted
+		FROM music
+		WHERE artist_id = $1
+		ORDER BY date_posted DESC
+	`
+
+	rows, err := r.DB.Query(
+		ctx,
+		query,
+		artistID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tracks := make([]models.Music, 0)
+
+	for rows.Next() {
+		var music models.Music
+
+		err := rows.Scan(
+			&music.ID,
+			&music.ArtistID,
+			&music.ArtistName,
+			&music.SongTitle,
+			&music.Genre,
+			&music.ImageURL,
+			&music.ImagePublicID,
+			&music.AudioURL,
+			&music.AudioPublicID,
+			&music.AudioKey,
+			&music.Likes,
+			&music.Loves,
+			&music.Rating,
+			&music.DatePosted,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		tracks = append(tracks, music)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tracks, nil
+}

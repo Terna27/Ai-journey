@@ -114,6 +114,7 @@ func (r *ArtistRepository) GetByID(
 	query := `
 		SELECT
 			id,
+			user_id,
 			name,
 			email,
 			password_hash,
@@ -131,6 +132,7 @@ func (r *ArtistRepository) GetByID(
 		id,
 	).Scan(
 		&artist.ID,
+		&artist.UserID,
 		&artist.Name,
 		&artist.Email,
 		&artist.PasswordHash,

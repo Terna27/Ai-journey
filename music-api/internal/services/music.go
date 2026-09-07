@@ -33,6 +33,11 @@ type MusicRepo interface {
 		id int,
 	) (models.Music, error)
 
+	GetByArtistID(
+		ctx context.Context,
+		artistID int,
+	) ([]models.Music, error)
+
 	Update(
 		ctx context.Context,
 		id int,
@@ -660,4 +665,19 @@ func buildMusic(
 			in.AudioKey,
 		),
 	}, nil
+}
+
+// GetMusicByArtistID returns all tracks owned by an artist.
+func (s *MusicService) GetMusicByArtistID(
+	ctx context.Context,
+	artistID int,
+) ([]models.Music, error) {
+	if artistID < 1 {
+		return []models.Music{}, nil
+	}
+
+	return s.repo.GetByArtistID(
+		ctx,
+		artistID,
+	)
 }
