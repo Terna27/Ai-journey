@@ -571,7 +571,7 @@ function PlaylistDetailsPage() {
                     event
                       .target
                       .value ===
-                      'public',
+                    'public',
                   )
                 }
               >
@@ -679,11 +679,18 @@ function PlaylistDetailsPage() {
                       }
                     </strong>
 
-                    <span>
-                      {
-                        track.artist_name
-                      }
-                    </span>
+                    {track.artist_id ? (
+                      <Link
+                        to={`/artists/${track.artist_id}`}
+                        className="artist-link"
+                      >
+                        {track.artist_name}
+                      </Link>
+                    ) : (
+                      <span>
+                        {track.artist_name}
+                      </span>
+                    )}
 
                     {isCurrentTrack && (
                       <p className="music-now-playing">
@@ -713,9 +720,7 @@ function PlaylistDetailsPage() {
                       )
                     }
                   >
-                    {isThisTrackPlaying
-                      ? 'Pause'
-                      : 'Play'}
+                    {isThisTrackPlaying ? '❚❚' : '▶'}
                   </button>
 
                   <AddToQueueButton
@@ -731,7 +736,7 @@ function PlaylistDetailsPage() {
                       disabled={
                         isPending ||
                         pendingTrackID !==
-                          null
+                        null
                       }
                       onClick={() =>
                         void handleRemoveTrack(

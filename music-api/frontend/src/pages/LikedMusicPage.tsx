@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { useLibrary } from '../context/LibraryContext'
 import { usePlayer } from '../context/PlayerContext'
@@ -137,11 +138,22 @@ function LikedMusicPage() {
                           }
                         </strong>
 
-                        <span>
-                          {
-                            track.artist_name
-                          }
-                        </span>
+                        {track.artist_id ? (
+                          <Link
+                            to={`/artists/${track.artist_id}`}
+                            className="artist-link"
+                          >
+                            {
+                              track.artist_name
+                            }
+                          </Link>
+                        ) : (
+                          <span>
+                            {
+                              track.artist_name
+                            }
+                          </span>
+                        )}
                       </div>
 
                       <span className="genre-pill">
@@ -154,9 +166,12 @@ function LikedMusicPage() {
                         disabled={
                           !track.audio_url
                         }
+                        aria-label={
+                          isThisTrackPlaying
+                            ? `Pause ${track.song_title}`
+                            : `Play ${track.song_title}`
+                        }
                         onClick={() =>
-                          // Playing from the liked list queues
-                          // the full liked collection.
                           playTrack(
                             track,
                             likedMusic,
@@ -164,8 +179,8 @@ function LikedMusicPage() {
                         }
                       >
                         {isThisTrackPlaying
-                          ? 'Pause'
-                          : 'Play'}
+                          ? '❚❚'
+                          : '▶'}
                       </button>
 
                       <AddToQueueButton

@@ -7,6 +7,7 @@ import {
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 
+import ArtistPage from './pages/ArtistPage'
 import HomePage from './pages/HomePage'
 import LikedMusicPage from './pages/LikedMusicPage'
 import LoginPage from './pages/LoginPage'
@@ -27,6 +28,11 @@ function App() {
         <Route
           path="/"
           element={<HomePage />}
+        />
+
+        <Route
+          path="/artists/:id"
+          element={<ArtistPage />}
         />
 
         <Route
@@ -62,9 +68,7 @@ function App() {
 
           <Route
             path="/playlists/:id"
-            element={
-              <PlaylistDetailsPage />
-            }
+            element={<PlaylistDetailsPage />}
           />
         </Route>
 

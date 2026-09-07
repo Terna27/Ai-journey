@@ -10,8 +10,11 @@ import {
 } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import { useLibrary } from '../context/LibraryContext'
 import { usePlayer } from '../context/PlayerContext'
+
 import { getMusic } from '../lib/api'
+
 import type { Music } from '../types/music'
 
 import AddToPlaylistButton from '../components/music/AddToPlaylistButton'
@@ -28,6 +31,11 @@ function HomePage() {
   } = useAuth()
 
   const {
+    isLiked,
+    toggleLike,
+  } = useLibrary()
+
+  const {
     currentTrack,
     isPlaying,
     playTrack,
@@ -42,6 +50,16 @@ function HomePage() {
 
   const [error, setError] =
     useState('')
+
+  const [
+    pendingLikeTrackID,
+    setPendingLikeTrackID,
+  ] = useState<number | null>(null)
+
+  const [
+    likeError,
+    setLikeError,
+  ] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -89,7 +107,9 @@ function HomePage() {
     logout()
   }
 
-  function handlePlay(track: Music) {
+  function handlePlay(
+    track: Music,
+  ) {
     if (!isAuthenticated) {
       navigate('/login', {
         state: {
@@ -101,9 +121,49 @@ function HomePage() {
       return
     }
 
-    // Playing from the grid queues the visible
-    // collection so Next/Previous walk it.
-    playTrack(track, featuredMusic)
+    playTrack(
+      track,
+      featuredMusic,
+    )
+  }
+
+  async function handleLike(
+    track: Music,
+  ) {
+    if (!isAuthenticated) {
+      navigate('/login', {
+        state: {
+          message:
+            'Please log in to like music.',
+        },
+      })
+
+      return
+    }
+
+    if (
+      pendingLikeTrackID !== null
+    ) {
+      return
+    }
+
+    try {
+      setPendingLikeTrackID(
+        track.id,
+      )
+
+      setLikeError('')
+
+      await toggleLike(track)
+    } catch (err) {
+      setLikeError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update liked songs',
+      )
+    } finally {
+      setPendingLikeTrackID(null)
+    }
   }
 
   return (
@@ -129,7 +189,8 @@ function HomePage() {
                 <span className="artist-avatar">
                   {user?.name
                     ?.charAt(0)
-                    .toUpperCase() ?? 'U'}
+                    .toUpperCase() ??
+                    'U'}
                 </span>
 
                 <span className="artist-account-info">
@@ -157,7 +218,9 @@ function HomePage() {
               <button
                 type="button"
                 className="logout-button"
-                onClick={handleLogout}
+                onClick={
+                  handleLogout
+                }
               >
                 Logout
               </button>
@@ -251,7 +314,9 @@ function HomePage() {
               DISCOVER
             </p>
 
-            <h3>Trending now</h3>
+            <h3>
+              Trending now
+            </h3>
           </div>
 
           <span className="text-button">
@@ -259,21 +324,35 @@ function HomePage() {
           </span>
         </div>
 
-        {loading && (
+        {likeError && (
           <section className="content-panel">
-            <p>Loading music...</p>
+            <p className="form-error">
+              {likeError}
+            </p>
           </section>
         )}
 
-        {!loading && error && (
+        {loading && (
           <section className="content-panel">
-            <p>{error}</p>
+            <p>
+              Loading music...
+            </p>
           </section>
         )}
 
         {!loading &&
+          error && (
+            <section className="content-panel">
+              <p>
+                {error}
+              </p>
+            </section>
+          )}
+
+        {!loading &&
           !error &&
-          featuredMusic.length === 0 && (
+          featuredMusic.length ===
+          0 && (
             <section className="content-panel">
               <p>
                 No music has been
@@ -284,7 +363,8 @@ function HomePage() {
 
         {!loading &&
           !error &&
-          featuredMusic.length > 0 && (
+          featuredMusic.length >
+          0 && (
             <div className="music-grid">
               {featuredMusic.map(
                 (track, index) => {
@@ -296,15 +376,22 @@ function HomePage() {
                     isCurrentTrack &&
                     isPlaying
 
+                  const trackIsLiked =
+                    isLiked(track.id)
+
+                  const isLikePending =
+                    pendingLikeTrackID ===
+                    track.id
+
                   return (
                     <article
                       className="music-card"
                       key={track.id}
                     >
                       <div
-                        className={`music-cover cover-${
-                          (index % 4) + 1
-                        }`}
+                        className={`music-cover cover-${(index % 4) +
+                          1
+                          }`}
                       >
                         {track.image_url && (
                           <img
@@ -314,69 +401,118 @@ function HomePage() {
                             alt={`${track.song_title} cover`}
                           />
                         )}
-
-                        {track.audio_url && (
-                          <button
-                            type="button"
-                            className="play-button"
-                            aria-label={
-                              isThisTrackPlaying
-                                ? `Pause ${track.song_title}`
-                                : `Play ${track.song_title}`
-                            }
-                            onClick={() =>
-                              handlePlay(
-                                track,
-                              )
-                            }
-                          >
-                            {isThisTrackPlaying
-                              ? '❚❚'
-                              : '▶'}
-                          </button>
-                        )}
                       </div>
 
                       <div className="music-card-content">
-                        <div>
-                          <h4>
+                        <div className="music-card-info">
+                          <h4 className="music-card-title">
                             {
                               track.song_title
                             }
                           </h4>
 
-                          <p>
-                            {
+                          <p className="music-card-artist">
+                            {track.artist_id ? (
+                              <Link
+                                to={`/artists/${track.artist_id}`}
+                                className="artist-link"
+                              >
+                                {track.artist_name}
+                              </Link>
+                            ) : (
                               track.artist_name
-                            }
-                          </p>
-
-                          {isCurrentTrack &&
-                            isAuthenticated && (
-                              <p className="music-now-playing">
-                                {isPlaying
-                                  ? 'Now playing'
-                                  : 'Paused'}
-                              </p>
                             )}
+                          </p>
                         </div>
 
                         <div className="music-card-actions">
+                          <span className="genre-pill">
+                            {
+                              track.genre
+                            }
+                          </span>
+
+                          {track.audio_url && (
+                            <button
+                              type="button"
+                              className="track-play-button"
+                              aria-label={
+                                isThisTrackPlaying
+                                  ? `Pause ${track.song_title}`
+                                  : `Play ${track.song_title}`
+                              }
+                              onClick={() =>
+                                handlePlay(
+                                  track,
+                                )
+                              }
+                            >
+                              {isThisTrackPlaying
+                                ? '❚❚'
+                                : '▶'}
+                            </button>
+                          )}
+
                           {isAuthenticated && (
                             <AddToQueueButton
-                              track={track}
+                              track={
+                                track
+                              }
                             />
                           )}
 
                           {isAuthenticated && (
                             <AddToPlaylistButton
-                              track={track}
+                              track={
+                                track
+                              }
                             />
                           )}
 
-                          <span className="genre-pill">
-                            {track.genre}
-                          </span>
+                          {isAuthenticated && (
+                            <button
+                              type="button"
+                              className={`music-like-button${trackIsLiked
+                                  ? ' is-liked'
+                                  : ''
+                                }`}
+                              aria-label={
+                                trackIsLiked
+                                  ? `Unlike ${track.song_title}`
+                                  : `Like ${track.song_title}`
+                              }
+                              aria-pressed={
+                                trackIsLiked
+                              }
+                              disabled={
+                                isLikePending
+                              }
+                              onClick={() =>
+                                void handleLike(
+                                  track,
+                                )
+                              }
+                            >
+                              <svg
+                                className="music-like-icon"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M12 21s-7.2-4.35-9.5-8.5C.85 9.5 2.15 5.5 5.75 4.5c2.15-.6 4.15.25 5.25 1.85C12.1 4.75 14.1 3.9 16.25 4.5c3.6 1 4.9 5 3.25 8C17.2 16.65 12 21 12 21Z"
+                                  fill={
+                                    trackIsLiked
+                                      ? 'currentColor'
+                                      : 'none'
+                                  }
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </article>
@@ -391,3 +527,4 @@ function HomePage() {
 }
 
 export default HomePage
+

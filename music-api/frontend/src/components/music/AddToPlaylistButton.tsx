@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import {
+  useEffect,
+  useId,
+  useState,
+} from 'react'
 
 import { useAuth } from '../../context/AuthContext'
 import { usePlaylists } from '../../context/PlaylistContext'
@@ -11,14 +15,14 @@ type AddToPlaylistButtonProps = {
   track: Music
 }
 
-/*
- * Opens a small menu with the user's playlists so a song
- * can be added with one click, plus inline creation of a
- * new playlist that immediately receives the song.
- */
+const PLAYLIST_MENU_OPEN_EVENT =
+  'music:add-to-playlist-open'
+
 function AddToPlaylistButton({
   track,
 }: AddToPlaylistButtonProps) {
+  const instanceID = useId()
+
   const {
     user,
     isAuthenticated,
@@ -41,20 +45,31 @@ function AddToPlaylistButton({
     setStatusMessage,
   ] = useState('')
 
-  const [isErrorMessage, setIsErrorMessage] =
-    useState(false)
+  const [
+    isErrorMessage,
+    setIsErrorMessage,
+  ] = useState(false)
 
-  const [pendingPlaylistID, setPendingPlaylistID] =
-    useState<number | null>(null)
+  const [
+    pendingPlaylistID,
+    setPendingPlaylistID,
+  ] = useState<number | null>(null)
 
-  const [isCreating, setIsCreating] =
-    useState(false)
+  const [
+    isCreating,
+    setIsCreating,
+  ] = useState(false)
 
-  const [newPlaylistName, setNewPlaylistName] =
-    useState('')
+  const [
+    newPlaylistName,
+    setNewPlaylistName,
+  ] = useState('')
 
-  const [isVerified, setIsVerified] =
-    useState(false)
+  const isVerified =
+    Boolean(user?.email_verified)
+
+  const hasPlaylists =
+    playlists.length > 0
 
   function resetMenu() {
     setStatusMessage('')
@@ -63,43 +78,93 @@ function AddToPlaylistButton({
     setIsCreating(false)
   }
 
+  function closeMenu() {
+    setIsOpen(false)
+    resetMenu()
+  }
+
   function openMenu() {
     if (!isAuthenticated) {
       return
     }
 
     resetMenu()
-    setIsOpen(true)
 
-    // Playlist endpoints require a verified email address.
-    setIsVerified(
-      Boolean(user?.email_verified),
+    window.dispatchEvent(
+      new CustomEvent(
+        PLAYLIST_MENU_OPEN_EVENT,
+        {
+          detail: instanceID,
+        },
+      ),
     )
+
+    setIsOpen(true)
   }
 
-  function closeMenu() {
-    setIsOpen(false)
-    resetMenu()
+  function handleToggle() {
+    if (isOpen) {
+      closeMenu()
+      return
+    }
+
+    openMenu()
   }
+
+  useEffect(() => {
+    function handleAnotherMenuOpened(
+      event: Event,
+    ) {
+      const customEvent =
+        event as CustomEvent<string>
+
+      if (
+        customEvent.detail ===
+        instanceID
+      ) {
+        return
+      }
+
+      setIsOpen(false)
+      resetMenu()
+    }
+
+    window.addEventListener(
+      PLAYLIST_MENU_OPEN_EVENT,
+      handleAnotherMenuOpened,
+    )
+
+    return () => {
+      window.removeEventListener(
+        PLAYLIST_MENU_OPEN_EVENT,
+        handleAnotherMenuOpened,
+      )
+    }
+  }, [instanceID])
 
   async function handleAddToExisting(
     playlistID: number,
   ) {
-    if (pendingPlaylistID !== null) {
+    if (
+      pendingPlaylistID !== null
+    ) {
       return
     }
 
     try {
-      setPendingPlaylistID(playlistID)
+      setPendingPlaylistID(
+        playlistID,
+      )
+
       setStatusMessage('')
       setIsErrorMessage(false)
 
-      await addTrack(playlistID, track.id)
-
-      setStatusMessage(
-        `Added to playlist.`,
+      await addTrack(
+        playlistID,
+        track.id,
       )
-      setIsErrorMessage(false)
+
+      closeMenu()
     } catch (error) {
       if (
         error instanceof APIError &&
@@ -109,6 +174,7 @@ function AddToPlaylistButton({
         setStatusMessage(
           'This song is already in that playlist.',
         )
+
         setIsErrorMessage(false)
         return
       }
@@ -118,6 +184,7 @@ function AddToPlaylistButton({
           ? error.message
           : 'Failed to add song to playlist',
       )
+
       setIsErrorMessage(true)
     } finally {
       setPendingPlaylistID(null)
@@ -125,14 +192,19 @@ function AddToPlaylistButton({
   }
 
   async function handleCreateAndAdd() {
-    const name = newPlaylistName.trim()
+    const name =
+      newPlaylistName.trim()
 
-    if (isCreating || name === '') {
+    if (
+      isCreating ||
+      name === ''
+    ) {
       return
     }
 
     try {
       setIsCreating(true)
+
       setStatusMessage('')
       setIsErrorMessage(false)
 
@@ -148,33 +220,28 @@ function AddToPlaylistButton({
         track.id,
       )
 
-      setStatusMessage(
-        `Added to "${created.name}".`,
-      )
-      setIsErrorMessage(false)
-      setNewPlaylistName('')
+      closeMenu()
     } catch (error) {
       setStatusMessage(
         error instanceof Error
           ? error.message
           : 'Failed to create playlist',
       )
+
       setIsErrorMessage(true)
     } finally {
       setIsCreating(false)
     }
   }
 
-  const hasPlaylists =
-    playlists.length > 0
-
   return (
     <div className="add-to-playlist">
       <button
         type="button"
-        className="secondary-button add-to-playlist-trigger"
+        className="text-button add-to-playlist-trigger"
         aria-label={`Add ${track.song_title} to a playlist`}
-        onClick={openMenu}
+        aria-expanded={isOpen}
+        onClick={handleToggle}
       >
         + Playlist
       </button>
@@ -254,7 +321,9 @@ function AddToPlaylistButton({
                         playlist.id
 
                       return (
-                        <li key={playlist.id}>
+                        <li
+                          key={playlist.id}
+                        >
                           <button
                             type="button"
                             disabled={
@@ -298,14 +367,17 @@ function AddToPlaylistButton({
               <div className="add-to-playlist-create">
                 <input
                   type="text"
-                  value={newPlaylistName}
+                  value={
+                    newPlaylistName
+                  }
                   placeholder="New playlist name"
                   maxLength={120}
-                  disabled={isCreating}
+                  disabled={
+                    isCreating
+                  }
                   onChange={(event) =>
                     setNewPlaylistName(
-                      event.target
-                        .value,
+                      event.target.value,
                     )
                   }
                 />
@@ -315,8 +387,8 @@ function AddToPlaylistButton({
                   className="primary-button"
                   disabled={
                     isCreating ||
-                    newPlaylistName.trim() ===
-                      ''
+                    newPlaylistName
+                      .trim() === ''
                   }
                   onClick={() =>
                     void handleCreateAndAdd()

@@ -3,7 +3,11 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { useLocation } from 'react-router-dom'
+
+import {
+  Link,
+  useLocation,
+} from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
 import { usePlayer } from '../context/PlayerContext'
@@ -21,11 +25,14 @@ function formatDate(value: string) {
     return ''
   }
 
-  return new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
+  return new Intl.DateTimeFormat(
+    'en',
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    },
+  ).format(date)
 }
 
 function MyMusicPage() {
@@ -39,9 +46,14 @@ function MyMusicPage() {
 
   const location = useLocation()
 
-  const [music, setMusic] = useState<Music[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [music, setMusic] =
+    useState<Music[]>([])
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
 
   const locationState =
     location.state as LocationState | null
@@ -54,7 +66,8 @@ function MyMusicPage() {
         setLoading(true)
         setError('')
 
-        const result = await getMusic()
+        const result =
+          await getMusic()
 
         if (!cancelled) {
           setMusic(result)
@@ -88,7 +101,8 @@ function MyMusicPage() {
 
     return music.filter(
       (track) =>
-        track.artist_id === artist.id,
+        track.artist_id ===
+        artist.id,
     )
   }, [artist, music])
 
@@ -118,7 +132,9 @@ function MyMusicPage() {
 
       {loading && (
         <section className="content-panel">
-          <p>Loading your music...</p>
+          <p>
+            Loading your music...
+          </p>
         </section>
       )}
 
@@ -143,99 +159,117 @@ function MyMusicPage() {
         !error &&
         myMusic.length > 0 && (
           <section className="my-music-grid">
-            {myMusic.map((track) => {
-              const isCurrentTrack =
-                currentTrack?.id === track.id
+            {myMusic.map(
+              (track) => {
+                const isCurrentTrack =
+                  currentTrack?.id ===
+                  track.id
 
-              const isThisTrackPlaying =
-                isCurrentTrack &&
-                isPlaying
+                const isThisTrackPlaying =
+                  isCurrentTrack &&
+                  isPlaying
 
-              return (
-                <article
-                  className={
-                    isCurrentTrack
-                      ? 'my-music-card playing'
-                      : 'my-music-card'
-                  }
-                  key={track.id}
-                >
-                  <div className="my-music-cover">
-                    {track.image_url ? (
-                      <img
-                        src={track.image_url}
-                        alt={`${track.song_title} cover`}
-                      />
-                    ) : (
-                      <div className="my-music-cover-fallback">
-                        No cover
-                      </div>
-                    )}
+                return (
+                  <article
+                    className={
+                      isCurrentTrack
+                        ? 'my-music-card playing'
+                        : 'my-music-card'
+                    }
+                    key={track.id}
+                  >
+                    <div className="my-music-cover">
+                      {track.image_url ? (
+                        <img
+                          src={
+                            track.image_url
+                          }
+                          alt={`${track.song_title} cover`}
+                        />
+                      ) : (
+                        <div className="my-music-cover-fallback">
+                          No cover
+                        </div>
+                      )}
 
-                    {track.audio_url && (
-                      <button
-                        type="button"
-                        className="my-music-play-button"
-                        aria-label={
-                          isThisTrackPlaying
-                            ? `Pause ${track.song_title}`
-                            : `Play ${track.song_title}`
-                        }
-                        onClick={() =>
-                          // Playing from My Music queues the
-                          // artist's own track list.
-                          playTrack(
-                            track,
-                            myMusic,
-                          )
-                        }
-                      >
-                        {isThisTrackPlaying
-                          ? '❚❚'
-                          : '▶'}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="my-music-card-body">
-                    <div className="my-music-card-heading">
-                      <div>
-                        <h3>
-                          {track.song_title}
-                        </h3>
-
-                        <p>
-                          {track.artist_name}
-                        </p>
-                      </div>
-
-                      <span className="music-genre">
-                        {track.genre}
-                      </span>
+                      {track.audio_url && (
+                        <button
+                          type="button"
+                          className="my-music-play-button"
+                          aria-label={
+                            isThisTrackPlaying
+                              ? `Pause ${track.song_title}`
+                              : `Play ${track.song_title}`
+                          }
+                          onClick={() =>
+                            playTrack(
+                              track,
+                              myMusic,
+                            )
+                          }
+                        >
+                          {isThisTrackPlaying
+                            ? '❚❚'
+                            : '▶'}
+                        </button>
+                      )}
                     </div>
 
-                    <p className="music-upload-date">
-                      Uploaded{' '}
-                      {formatDate(
-                        track.date_posted,
+                    <div className="my-music-card-body">
+                      <div className="my-music-card-heading">
+                        <div>
+                          <h3>
+                            {
+                              track.song_title
+                            }
+                          </h3>
+
+                          {track.artist_id ? (
+                            <Link
+                              to={`/artists/${track.artist_id}`}
+                              className="artist-link"
+                            >
+                              {
+                                track.artist_name
+                              }
+                            </Link>
+                          ) : (
+                            <span>
+                              {
+                                track.artist_name
+                              }
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="music-genre">
+                          {track.genre}
+                        </span>
+                      </div>
+
+                      <p className="music-upload-date">
+                        Uploaded{' '}
+                        {formatDate(
+                          track.date_posted,
+                        )}
+                      </p>
+
+                      {isThisTrackPlaying && (
+                        <p className="music-now-playing">
+                          Now playing
+                        </p>
                       )}
-                    </p>
 
-                    {isThisTrackPlaying && (
-                      <p className="music-now-playing">
-                        Now playing
-                      </p>
-                    )}
-
-                    {!track.audio_url && (
-                      <p className="music-unavailable">
-                        Audio unavailable
-                      </p>
-                    )}
-                  </div>
-                </article>
-              )
-            })}
+                      {!track.audio_url && (
+                        <p className="music-unavailable">
+                          Audio unavailable
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                )
+              },
+            )}
           </section>
         )}
     </>
