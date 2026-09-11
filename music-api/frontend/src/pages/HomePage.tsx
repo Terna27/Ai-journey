@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -13,12 +14,100 @@ import { useAuth } from '../context/AuthContext'
 import { useLibrary } from '../context/LibraryContext'
 import { usePlayer } from '../context/PlayerContext'
 
-import { getMusic } from '../lib/api'
+import {
+  getHeroArtists,
+  getMusic,
+} from '../lib/api'
+
+import type {
+  DiscoveryHeroArtist,
+} from '../types/discovery'
 
 import type { Music } from '../types/music'
 
 import AddToPlaylistButton from '../components/music/AddToPlaylistButton'
 import AddToQueueButton from '../components/music/AddToQueueButton'
+
+function chooseWeightedHeroIndex(
+  artists: DiscoveryHeroArtist[],
+  currentIndex: number,
+) {
+  if (artists.length <= 1) {
+    return 0
+  }
+
+  const candidates = artists
+    .map((artist, index) => ({
+      artist,
+      index,
+    }))
+    .filter(
+      ({ index }) =>
+        index !== currentIndex,
+    )
+
+  const weightedCandidates =
+    candidates.map(
+      ({
+        artist,
+        index,
+      }) => {
+        const engagementWeight =
+          Math.max(
+            artist.engagement_score,
+            0,
+          ) + 1
+
+        const rankingWeight =
+          Math.max(
+            artists.length - index,
+            1,
+          )
+
+        return {
+          index,
+          weight:
+            engagementWeight *
+            rankingWeight,
+        }
+      },
+    )
+
+  const totalWeight =
+    weightedCandidates.reduce(
+      (total, candidate) =>
+        total +
+        candidate.weight,
+      0,
+    )
+
+  if (totalWeight <= 0) {
+    return candidates[
+      Math.floor(
+        Math.random() *
+          candidates.length,
+      )
+    ].index
+  }
+
+  let randomValue =
+    Math.random() * totalWeight
+
+  for (
+    const candidate
+    of weightedCandidates
+  ) {
+    randomValue -= candidate.weight
+
+    if (randomValue <= 0) {
+      return candidate.index
+    }
+  }
+
+  return weightedCandidates[
+    weightedCandidates.length - 1
+  ].index
+}
 
 function HomePage() {
   const navigate = useNavigate()
@@ -45,6 +134,33 @@ function HomePage() {
   const [music, setMusic] =
     useState<Music[]>([])
 
+  const [
+    heroArtists,
+    setHeroArtists,
+  ] = useState<
+    DiscoveryHeroArtist[]
+  >([])
+
+  const [
+    activeHeroIndex,
+    setActiveHeroIndex,
+  ] = useState(0)
+
+  const [
+    heroVideoFailed,
+    setHeroVideoFailed,
+  ] = useState(false)
+
+  const [
+    heroLoading,
+    setHeroLoading,
+  ] = useState(true)
+
+  const [
+    heroError,
+    setHeroError,
+  ] = useState('')
+
   const [loading, setLoading] =
     useState(true)
 
@@ -54,7 +170,9 @@ function HomePage() {
   const [
     pendingLikeTrackID,
     setPendingLikeTrackID,
-  ] = useState<number | null>(null)
+  ] = useState<number | null>(
+    null,
+  )
 
   const [
     likeError,
@@ -97,10 +215,129 @@ function HomePage() {
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadHeroArtists() {
+      try {
+        setHeroLoading(true)
+        setHeroError('')
+
+        const result =
+          await getHeroArtists()
+
+        if (cancelled) {
+          return
+        }
+
+        setHeroArtists(
+          result.artists,
+        )
+
+        if (
+          result.artists.length > 1
+        ) {
+          setActiveHeroIndex(
+            chooseWeightedHeroIndex(
+              result.artists,
+              -1,
+            ),
+          )
+        } else {
+          setActiveHeroIndex(0)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setHeroError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load featured artists',
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setHeroLoading(false)
+        }
+      }
+    }
+
+    void loadHeroArtists()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const featuredMusic =
     useMemo(() => {
       return music.slice(0, 8)
     }, [music])
+
+  const activeHeroArtist =
+    heroArtists[
+      activeHeroIndex
+    ] ?? null
+
+  const selectNextHero =
+    useCallback(() => {
+      if (
+        heroArtists.length <= 1
+      ) {
+        return
+      }
+
+      setActiveHeroIndex(
+        (currentIndex) =>
+          chooseWeightedHeroIndex(
+            heroArtists,
+            currentIndex,
+          ),
+      )
+    }, [heroArtists])
+
+  function selectPreviousHero() {
+    if (
+      heroArtists.length <= 1
+    ) {
+      return
+    }
+
+    setActiveHeroIndex(
+      (currentIndex) =>
+        currentIndex === 0
+          ? heroArtists.length - 1
+          : currentIndex - 1,
+    )
+  }
+
+  useEffect(() => {
+    setHeroVideoFailed(false)
+  }, [
+    activeHeroArtist?.hero_video_url,
+  ])
+
+  useEffect(() => {
+    if (
+      !heroVideoFailed ||
+      heroArtists.length <= 1
+    ) {
+      return
+    }
+
+    const timer =
+      window.setTimeout(
+        selectNextHero,
+        12000,
+      )
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [
+    heroArtists.length,
+    heroVideoFailed,
+    selectNextHero,
+  ])
 
   function handleLogout() {
     stopPlayback()
@@ -245,64 +482,282 @@ function HomePage() {
         </div>
       </header>
 
-      <section className="hero-section">
-        <div className="hero-copy">
-          <span className="hero-badge">
-            Featured this week
-          </span>
+      {heroLoading && (
+        <section className="home-video-hero home-video-hero-loading">
+          <div className="home-video-hero-content">
+            <p className="hero-badge">
+              Featured artists
+            </p>
 
-          <h3>
-            Music for every moment.
-          </h3>
-
-          <p>
-            Discover independent artists,
-            stream new songs and build a
-            collection around the music
-            you love.
-          </p>
-
-          <div className="hero-actions">
-            <a
-              href="#discover"
-              className="primary-button"
-            >
-              Explore music
-            </a>
-
-            {isAuthenticated ? (
-              isArtist ? (
-                <Link
-                  to="/upload"
-                  className="secondary-button"
-                >
-                  Upload your music
-                </Link>
-              ) : (
-                <Link
-                  to="/profile"
-                  className="secondary-button"
-                >
-                  Become an Artist
-                </Link>
-              )
-            ) : (
-              <Link
-                to="/register"
-                className="secondary-button"
-              >
-                Create account
-              </Link>
-            )}
+            <h3>
+              Discovering what is
+              moving right now...
+            </h3>
           </div>
-        </div>
+        </section>
+      )}
 
-        <div className="hero-art">
-          <div className="hero-disc">
-            <div className="hero-disc-center" />
-          </div>
-        </div>
-      </section>
+      {!heroLoading &&
+        activeHeroArtist && (
+          <section
+            className="home-video-hero"
+            style={
+              activeHeroArtist
+                .hero_video_poster_url
+                ? {
+                    backgroundImage:
+                      `url("${activeHeroArtist.hero_video_poster_url}")`,
+                  }
+                : undefined
+            }
+          >
+            <div className="home-video-hero-media">
+              {!heroVideoFailed && (
+                <video
+                  key={
+                    activeHeroArtist.id
+                  }
+                  className="home-video-hero-video"
+                  src={
+                    activeHeroArtist.hero_video_url
+                  }
+                  poster={
+                    activeHeroArtist.hero_video_poster_url
+                  }
+                  autoPlay
+                  muted
+                  playsInline
+                  preload="metadata"
+                  loop={
+                    heroArtists.length ===
+                    1
+                  }
+                  aria-hidden="true"
+                  onEnded={
+                    selectNextHero
+                  }
+                  onError={() =>
+                    setHeroVideoFailed(
+                      true,
+                    )
+                  }
+                />
+              )}
+
+              {heroVideoFailed &&
+                activeHeroArtist
+                  .hero_video_poster_url && (
+                  <img
+                    className="home-video-hero-poster"
+                    src={
+                      activeHeroArtist.hero_video_poster_url
+                    }
+                    alt=""
+                    aria-hidden="true"
+                  />
+                )}
+            </div>
+
+            <div className="home-video-hero-overlay" />
+
+            <div className="home-video-hero-content">
+              <div className="home-video-hero-artist">
+                <div className="home-video-hero-avatar">
+                  {activeHeroArtist
+                    .profile_image_url ? (
+                    <img
+                      src={
+                        activeHeroArtist.profile_image_url
+                      }
+                      alt={`${activeHeroArtist.name} profile`}
+                    />
+                  ) : (
+                    <span>
+                      {activeHeroArtist.name
+                        .charAt(0)
+                        .toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="home-video-hero-copy">
+                  <span className="hero-badge">
+                    Featured artist
+                  </span>
+
+                  <h1>
+                    {
+                      activeHeroArtist.name
+                    }
+                  </h1>
+
+                  {activeHeroArtist.bio && (
+                    <p className="home-video-hero-bio">
+                      {
+                        activeHeroArtist.bio
+                      }
+                    </p>
+                  )}
+
+                  <div className="home-video-hero-stats">
+                    <span>
+                      {
+                        activeHeroArtist.track_count
+                      }{' '}
+                      {activeHeroArtist.track_count ===
+                      1
+                        ? 'track'
+                        : 'tracks'}
+                    </span>
+
+                    <span
+                      aria-hidden="true"
+                    >
+                      •
+                    </span>
+
+                    <span>
+                      Trending score{' '}
+                      {
+                        activeHeroArtist.engagement_score
+                      }
+                    </span>
+                  </div>
+
+                  <div className="home-video-hero-actions">
+                    <Link
+                      to={`/artists/${activeHeroArtist.id}`}
+                      className="home-video-hero-primary"
+                    >
+                      View Artist
+                    </Link>
+
+                    <a
+                      href="#discover"
+                      className="home-video-hero-secondary"
+                    >
+                      Explore music
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {heroArtists.length >
+                1 && (
+                <div className="home-video-hero-navigation">
+                  <button
+                    type="button"
+                    className="home-video-nav-button"
+                    aria-label="Previous featured artist"
+                    onClick={
+                      selectPreviousHero
+                    }
+                  >
+                    ‹
+                  </button>
+
+                  <div className="home-video-hero-dots">
+                    {heroArtists.map(
+                      (
+                        artist,
+                        index,
+                      ) => (
+                        <button
+                          type="button"
+                          key={
+                            artist.id
+                          }
+                          className={
+                            index ===
+                            activeHeroIndex
+                              ? 'home-video-hero-dot is-active'
+                              : 'home-video-hero-dot'
+                          }
+                          aria-label={`Show ${artist.name}`}
+                          aria-current={
+                            index ===
+                            activeHeroIndex
+                              ? 'true'
+                              : undefined
+                          }
+                          onClick={() =>
+                            setActiveHeroIndex(
+                              index,
+                            )
+                          }
+                        />
+                      ),
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="home-video-nav-button"
+                    aria-label="Next featured artist"
+                    onClick={
+                      selectNextHero
+                    }
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+      {!heroLoading &&
+        !activeHeroArtist && (
+          <section className="hero-section">
+            <div className="hero-copy">
+              <span className="hero-badge">
+                Discover music
+              </span>
+
+              <h3>
+                Music for every moment.
+              </h3>
+
+              <p>
+                Discover independent
+                artists, stream new songs
+                and build a collection
+                around the music you
+                love.
+              </p>
+
+              {heroError && (
+                <p className="form-error">
+                  {heroError}
+                </p>
+              )}
+
+              <div className="hero-actions">
+                <a
+                  href="#discover"
+                  className="primary-button"
+                >
+                  Explore music
+                </a>
+
+                {!isAuthenticated && (
+                  <Link
+                    to="/register"
+                    className="secondary-button"
+                  >
+                    Create account
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="hero-art">
+              <div className="hero-disc">
+                <div className="hero-disc-center" />
+              </div>
+            </div>
+          </section>
+        )}
 
       <section
         className="section"
@@ -352,7 +807,7 @@ function HomePage() {
         {!loading &&
           !error &&
           featuredMusic.length ===
-          0 && (
+            0 && (
             <section className="content-panel">
               <p>
                 No music has been
@@ -364,10 +819,13 @@ function HomePage() {
         {!loading &&
           !error &&
           featuredMusic.length >
-          0 && (
+            0 && (
             <div className="music-grid">
               {featuredMusic.map(
-                (track, index) => {
+                (
+                  track,
+                  index,
+                ) => {
                   const isCurrentTrack =
                     currentTrack?.id ===
                     track.id
@@ -389,9 +847,9 @@ function HomePage() {
                       key={track.id}
                     >
                       <div
-                        className={`music-cover cover-${(index % 4) +
-                          1
-                          }`}
+                        className={`music-cover cover-${(index %
+                          4) +
+                          1}`}
                       >
                         {track.image_url && (
                           <img
@@ -417,7 +875,9 @@ function HomePage() {
                                 to={`/artists/${track.artist_id}`}
                                 className="artist-link"
                               >
-                                {track.artist_name}
+                                {
+                                  track.artist_name
+                                }
                               </Link>
                             ) : (
                               track.artist_name
@@ -473,8 +933,8 @@ function HomePage() {
                             <button
                               type="button"
                               className={`music-like-button${trackIsLiked
-                                  ? ' is-liked'
-                                  : ''
+                                ? ' is-liked'
+                                : ''
                                 }`}
                               aria-label={
                                 trackIsLiked
@@ -527,4 +987,3 @@ function HomePage() {
 }
 
 export default HomePage
-

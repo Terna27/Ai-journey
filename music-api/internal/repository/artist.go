@@ -23,6 +23,38 @@ func NewArtistRepository(db *pgxpool.Pool) *ArtistRepository {
 	}
 }
 
+// artistRowScanner is implemented by pgx.Row and allows all artist
+// queries to use one consistent scan definition.
+type artistRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanArtist(row artistRowScanner) (models.Artist, error) {
+	var artist models.Artist
+
+	err := row.Scan(
+		&artist.ID,
+		&artist.UserID,
+		&artist.Name,
+		&artist.Email,
+		&artist.PasswordHash,
+		&artist.Bio,
+		&artist.ProfileImageURL,
+		&artist.ProfileImagePublicID,
+		&artist.HeroVideoURL,
+		&artist.HeroVideoPublicID,
+		&artist.HeroVideoPosterURL,
+		&artist.HeroVideoPosterPublicID,
+		&artist.CreatedAt,
+		&artist.UpdatedAt,
+	)
+	if err != nil {
+		return models.Artist{}, err
+	}
+
+	return artist, nil
+}
+
 func (r *ArtistRepository) Create(
 	ctx context.Context,
 	artist models.Artist,
@@ -72,30 +104,30 @@ func (r *ArtistRepository) GetByEmail(
 	query := `
 		SELECT
 			id,
+			user_id,
 			name,
 			email,
 			password_hash,
+			bio,
+			profile_image_url,
+			profile_image_public_id,
+			hero_video_url,
+			hero_video_public_id,
+			hero_video_poster_url,
+			hero_video_poster_public_id,
 			created_at,
 			updated_at
 		FROM artists
 		WHERE email = $1
 	`
 
-	var artist models.Artist
-
-	err := r.DB.QueryRow(
-		ctx,
-		query,
-		email,
-	).Scan(
-		&artist.ID,
-		&artist.Name,
-		&artist.Email,
-		&artist.PasswordHash,
-		&artist.CreatedAt,
-		&artist.UpdatedAt,
+	artist, err := scanArtist(
+		r.DB.QueryRow(
+			ctx,
+			query,
+			email,
+		),
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return models.Artist{}, pgx.ErrNoRows
@@ -118,28 +150,26 @@ func (r *ArtistRepository) GetByID(
 			name,
 			email,
 			password_hash,
+			bio,
+			profile_image_url,
+			profile_image_public_id,
+			hero_video_url,
+			hero_video_public_id,
+			hero_video_poster_url,
+			hero_video_poster_public_id,
 			created_at,
 			updated_at
 		FROM artists
 		WHERE id = $1
 	`
 
-	var artist models.Artist
-
-	err := r.DB.QueryRow(
-		ctx,
-		query,
-		id,
-	).Scan(
-		&artist.ID,
-		&artist.UserID,
-		&artist.Name,
-		&artist.Email,
-		&artist.PasswordHash,
-		&artist.CreatedAt,
-		&artist.UpdatedAt,
+	artist, err := scanArtist(
+		r.DB.QueryRow(
+			ctx,
+			query,
+			id,
+		),
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return models.Artist{}, pgx.ErrNoRows
@@ -162,28 +192,26 @@ func (r *ArtistRepository) GetByUserID(
 			name,
 			email,
 			password_hash,
+			bio,
+			profile_image_url,
+			profile_image_public_id,
+			hero_video_url,
+			hero_video_public_id,
+			hero_video_poster_url,
+			hero_video_poster_public_id,
 			created_at,
 			updated_at
 		FROM artists
 		WHERE user_id = $1
 	`
 
-	var artist models.Artist
-
-	err := r.DB.QueryRow(
-		ctx,
-		query,
-		userID,
-	).Scan(
-		&artist.ID,
-		&artist.UserID,
-		&artist.Name,
-		&artist.Email,
-		&artist.PasswordHash,
-		&artist.CreatedAt,
-		&artist.UpdatedAt,
+	artist, err := scanArtist(
+		r.DB.QueryRow(
+			ctx,
+			query,
+			userID,
+		),
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return models.Artist{}, pgx.ErrNoRows
@@ -213,29 +241,27 @@ func (r *ArtistRepository) CreateForUser(
 			name,
 			email,
 			password_hash,
+			bio,
+			profile_image_url,
+			profile_image_public_id,
+			hero_video_url,
+			hero_video_public_id,
+			hero_video_poster_url,
+			hero_video_poster_public_id,
 			created_at,
 			updated_at
 	`
 
-	var artist models.Artist
-
-	err := r.DB.QueryRow(
-		ctx,
-		query,
-		user.ID,
-		user.Name,
-		user.Email,
-		user.PasswordHash,
-	).Scan(
-		&artist.ID,
-		&artist.UserID,
-		&artist.Name,
-		&artist.Email,
-		&artist.PasswordHash,
-		&artist.CreatedAt,
-		&artist.UpdatedAt,
+	artist, err := scanArtist(
+		r.DB.QueryRow(
+			ctx,
+			query,
+			user.ID,
+			user.Name,
+			user.Email,
+			user.PasswordHash,
+		),
 	)
-
 	if err != nil {
 		var pgErr *pgconn.PgError
 
@@ -248,4 +274,62 @@ func (r *ArtistRepository) CreateForUser(
 	}
 
 	return artist, nil
+}
+
+func (r *ArtistRepository) UpdateProfile(
+	ctx context.Context,
+	artist models.Artist,
+) (models.Artist, error) {
+	query := `
+		UPDATE artists
+		SET
+			bio = $2,
+			profile_image_url = $3,
+			profile_image_public_id = $4,
+			hero_video_url = $5,
+			hero_video_public_id = $6,
+			hero_video_poster_url = $7,
+			hero_video_poster_public_id = $8,
+			updated_at = now()
+		WHERE id = $1
+		RETURNING
+			id,
+			user_id,
+			name,
+			email,
+			password_hash,
+			bio,
+			profile_image_url,
+			profile_image_public_id,
+			hero_video_url,
+			hero_video_public_id,
+			hero_video_poster_url,
+			hero_video_poster_public_id,
+			created_at,
+			updated_at
+	`
+
+	updatedArtist, err := scanArtist(
+		r.DB.QueryRow(
+			ctx,
+			query,
+			artist.ID,
+			artist.Bio,
+			artist.ProfileImageURL,
+			artist.ProfileImagePublicID,
+			artist.HeroVideoURL,
+			artist.HeroVideoPublicID,
+			artist.HeroVideoPosterURL,
+			artist.HeroVideoPosterPublicID,
+		),
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Artist{}, pgx.ErrNoRows
+		}
+
+		return models.Artist{}, err
+	}
+
+	return updatedArtist, nil
 }

@@ -13,6 +13,12 @@ export type Artist = {
   user_id: number
   name: string
   email: string
+
+  bio?: string
+  profile_image_url?: string
+  hero_video_url?: string
+  hero_video_poster_url?: string
+
   created_at?: string
   updated_at?: string
 }

@@ -80,9 +80,13 @@ func (h *MusicHandler) GetArtistProfile(
 
 	response := models.ArtistProfile{
 		Artist: models.PublicArtist{
-			ID:        artist.ID,
-			Name:      artist.Name,
-			CreatedAt: artist.CreatedAt,
+			ID:                 artist.ID,
+			Name:               artist.Name,
+			Bio:                artist.Bio,
+			ProfileImageURL:    artist.ProfileImageURL,
+			HeroVideoURL:       artist.HeroVideoURL,
+			HeroVideoPosterURL: artist.HeroVideoPosterURL,
+			CreatedAt:          artist.CreatedAt,
 		},
 		Tracks: tracks,
 	}

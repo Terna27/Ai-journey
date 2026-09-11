@@ -13,6 +13,16 @@ import type {
 } from '../types/auth'
 
 import type {
+  SearchOptions,
+  SearchResponse,
+} from '../types/search'
+
+import type {
+  DiscoveryHeroResponse,
+  DiscoveryResponse,
+} from '../types/discovery'
+
+import type {
   Music,
   UploadMusicInput,
 } from '../types/music'
@@ -28,15 +38,45 @@ import type {
   ArtistProfileResponse,
 } from '../types/artist'
 
+import type {
+  AddReleaseTrackInput,
+  CreateReleaseInput,
+  Release,
+  ReleaseDetails,
+  UpdateReleaseInput,
+} from '../types/release'
+
+import type {
+  CreatePlaybackSessionInput,
+  ListeningHistoryItem,
+  PlaybackSession,
+  UpdatePlaybackProgressInput,
+} from '../types/playback'
+
+import type {
+  CreatePodcastEpisodeInput,
+  CreatePodcastInput,
+  Podcast,
+  PodcastDetails,
+  PodcastEpisode,
+  UpdatePodcastEpisodeInput,
+  UpdatePodcastEpisodeMediaInput,
+  UpdatePodcastArtworkInput,
+  UpdatePodcastInput,
+} from '../types/podcast'
+
+import type {
+  CreatePodcastPlaybackSessionInput,
+  PodcastContinueListeningItem,
+  PodcastListeningHistoryItem,
+  PodcastPlaybackSession,
+  UpdatePodcastPlaybackProgressInput,
+} from '../types/podcastPlayback'
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
   'http://localhost:8080/api/v1'
 
-/*
- * APIError keeps the backend error code so callers can
- * react to specific cases (e.g. TRACK_ALREADY_IN_PLAYLIST)
- * instead of parsing human-readable messages.
- */
 export class APIError extends Error {
   readonly status: number
   readonly code: string
@@ -47,6 +87,7 @@ export class APIError extends Error {
     code: string,
   ) {
     super(message)
+
     this.name = 'APIError'
     this.status = status
     this.code = code
@@ -108,7 +149,8 @@ export async function registerUser(
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(payload),
     },
@@ -123,7 +165,8 @@ export async function loginUser(
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(payload),
     },
@@ -138,7 +181,8 @@ export async function verifyEmail(
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(payload),
     },
@@ -153,7 +197,8 @@ export async function resendVerification(
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(payload),
     },
@@ -163,11 +208,15 @@ export async function resendVerification(
 export async function getMe(
   token: string,
 ): Promise<MeResponse> {
-  return request<MeResponse>('/me', {
-    headers: {
-      Authorization: `Bearer ${token}`,
+  return request<MeResponse>(
+    '/me',
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
     },
-  })
+  )
 }
 
 export async function createArtistProfile(
@@ -178,14 +227,18 @@ export async function createArtistProfile(
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
 }
 
-export async function getMusic(): Promise<Music[]> {
-  return request<Music[]>('/music')
+export async function getMusic():
+Promise<Music[]> {
+  return request<Music[]>(
+    '/music',
+  )
 }
 
 export async function uploadMusic(
@@ -224,23 +277,28 @@ export async function uploadMusic(
     payload.audio,
   )
 
-  return request<Music>('/music', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
+  return request<Music>(
+    '/music',
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+      body: formData,
     },
-    body: formData,
-  })
+  )
 }
-
 
 export async function getLikedMusic(
   token: string,
-): Promise<Music[]> {  return request<Music[]>(
+): Promise<Music[]> {
+  return request<Music[]>(
     '/me/liked-music',
     {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -255,7 +313,8 @@ export async function likeMusic(
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -270,7 +329,8 @@ export async function unlikeMusic(
     {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -285,8 +345,10 @@ export async function createPlaylist(
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(payload),
     },
@@ -300,7 +362,8 @@ export async function getMyPlaylists(
     '/me/playlists',
     {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -314,7 +377,8 @@ export async function getPlaylist(
     `/playlists/${playlistID}`,
     {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -330,8 +394,10 @@ export async function updatePlaylist(
     {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(payload),
     },
@@ -347,7 +413,8 @@ export async function deletePlaylist(
     {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -363,7 +430,8 @@ export async function addTrackToPlaylist(
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -379,7 +447,8 @@ export async function removeTrackFromPlaylist(
     {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     },
   )
@@ -393,4 +462,835 @@ export async function getArtistProfile(
   )
 }
 
+export async function getArtistReleases(
+  artistID: number,
+): Promise<Release[]> {
+  return request<Release[]>(
+    `/artists/${artistID}/releases`,
+  )
+}
+
+export async function getRelease(
+  releaseID: number,
+): Promise<ReleaseDetails> {
+  return request<ReleaseDetails>(
+    `/releases/${releaseID}`,
+  )
+}
+
+export async function getMyReleases(
+  token: string,
+): Promise<Release[]> {
+  return request<Release[]>(
+    '/me/releases',
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function getMyRelease(
+  releaseID: number,
+  token: string,
+): Promise<ReleaseDetails> {
+  return request<ReleaseDetails>(
+    `/me/releases/${releaseID}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function createRelease(
+  payload: CreateReleaseInput,
+  token: string,
+): Promise<Release> {
+  return request<Release>(
+    '/releases',
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function updateRelease(
+  releaseID: number,
+  payload: UpdateReleaseInput,
+  token: string,
+): Promise<Release> {
+  return request<Release>(
+    `/releases/${releaseID}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function deleteRelease(
+  releaseID: number,
+  token: string,
+): Promise<void> {
+  await request<void>(
+    `/releases/${releaseID}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function addTrackToRelease(
+  releaseID: number,
+  musicID: number,
+  payload: AddReleaseTrackInput,
+  token: string,
+): Promise<ReleaseDetails> {
+  return request<ReleaseDetails>(
+    `/releases/${releaseID}/tracks/${musicID}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function removeTrackFromRelease(
+  releaseID: number,
+  musicID: number,
+  token: string,
+): Promise<void> {
+  await request<void>(
+    `/releases/${releaseID}/tracks/${musicID}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+
+export async function searchMusic(
+  options: SearchOptions,
+): Promise<SearchResponse> {
+  const params = new URLSearchParams()
+
+  params.set(
+    'q',
+    options.query,
+  )
+
+  if (options.type) {
+    params.set(
+      'type',
+      options.type,
+    )
+  }
+
+  if (options.sort) {
+    params.set(
+      'sort',
+      options.sort,
+    )
+  }
+
+  if (options.genre?.trim()) {
+    params.set(
+      'genre',
+      options.genre.trim(),
+    )
+  }
+
+  if (options.page) {
+    params.set(
+      'page',
+      String(options.page),
+    )
+  }
+
+  if (options.limit) {
+    params.set(
+      'limit',
+      String(options.limit),
+    )
+  }
+
+  return request<SearchResponse>(
+    `/search?${params.toString()}`,
+  )
+}
+
+
+export async function getDiscovery():
+Promise<DiscoveryResponse> {
+  return request<DiscoveryResponse>(
+    '/discover',
+  )
+}
+
+export async function getHeroArtists():
+Promise<DiscoveryHeroResponse> {
+  return request<DiscoveryHeroResponse>(
+    '/discovery/hero-artists',
+  )
+}
+
+
+export async function updateArtistProfile(
+  formData: FormData,
+  token: string,
+): Promise<
+  import('../types/auth').Artist
+> {
+  return request<
+    import('../types/auth').Artist
+  >(
+    '/me/artist-profile',
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+      body: formData,
+    },
+  )
+}
+
 export { API_BASE_URL }
+
+export async function getTrackLyrics(
+  musicID: number,
+): Promise<
+  import('../types/lyrics').TrackLyrics
+> {
+  return request<
+    import('../types/lyrics').TrackLyrics
+  >(
+    `/music/${musicID}/lyrics`,
+  )
+}
+
+
+export type SaveTrackLyricsInput = {
+  plain_lyrics: string
+  synced_lines: import('../types/lyrics').LyricLine[]
+}
+export async function saveTrackLyrics(
+  musicID: number,
+  payload: SaveTrackLyricsInput,
+  token: string,
+): Promise<
+  import('../types/lyrics').TrackLyrics
+> {
+  return request<
+    import('../types/lyrics').TrackLyrics
+  >(
+    `/music/${musicID}/lyrics`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function deleteTrackLyrics(
+  musicID: number,
+  token: string,
+): Promise<void> {
+  await request<void>(
+    `/music/${musicID}/lyrics`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+// -----------------------------------------------------------------
+// Playback tracking (Phase 3.8)
+// -----------------------------------------------------------------
+
+export async function createPlaybackSession(
+  payload: CreatePlaybackSessionInput,
+  token: string,
+): Promise<PlaybackSession> {
+  return request<PlaybackSession>(
+    '/playback/sessions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(
+        payload,
+      ),
+    },
+  )
+}
+
+export async function getPlaybackSession(
+  sessionID: string,
+  token: string,
+): Promise<PlaybackSession> {
+  return request<PlaybackSession>(
+    `/playback/sessions/${sessionID}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function updatePlaybackProgress(
+  sessionID: string,
+  payload: UpdatePlaybackProgressInput,
+  token: string,
+): Promise<PlaybackSession> {
+  return request<PlaybackSession>(
+    `/playback/sessions/${sessionID}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(
+        payload,
+      ),
+    },
+  )
+}
+
+export async function completePlaybackSession(
+  sessionID: string,
+  payload: UpdatePlaybackProgressInput,
+  token: string,
+  keepalive = false,
+): Promise<PlaybackSession> {
+  return request<PlaybackSession>(
+    `/playback/sessions/${sessionID}/complete`,
+    {
+      method: 'POST',
+      keepalive,
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(
+        payload,
+      ),
+    },
+  )
+}
+
+export async function getListeningHistory(
+  token: string,
+  limit = 20,
+  offset = 0,
+): Promise<
+  ListeningHistoryItem[]
+> {
+  return request<
+    ListeningHistoryItem[]
+  >(
+    `/me/listening-history?limit=${limit}&offset=${offset}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+// -----------------------------------------------------------------
+// Podcast playback tracking (Phase 4.1)
+//
+// Dedicated podcast endpoints. Podcast episode ids must
+// never be sent to the music playback session functions
+// above.
+// -----------------------------------------------------------------
+
+export async function createPodcastPlaybackSession(
+  payload: CreatePodcastPlaybackSessionInput,
+  token: string,
+): Promise<PodcastPlaybackSession> {
+  return request<PodcastPlaybackSession>(
+    '/podcast-playback/sessions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(
+        payload,
+      ),
+    },
+  )
+}
+
+export async function getPodcastPlaybackSession(
+  sessionID: string,
+  token: string,
+): Promise<PodcastPlaybackSession> {
+  return request<PodcastPlaybackSession>(
+    `/podcast-playback/sessions/${sessionID}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function updatePodcastPlaybackProgress(
+  sessionID: string,
+  payload: UpdatePodcastPlaybackProgressInput,
+  token: string,
+): Promise<PodcastPlaybackSession> {
+  return request<PodcastPlaybackSession>(
+    `/podcast-playback/sessions/${sessionID}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(
+        payload,
+      ),
+    },
+  )
+}
+
+export async function completePodcastPlaybackSession(
+  sessionID: string,
+  payload: UpdatePodcastPlaybackProgressInput,
+  token: string,
+  keepalive = false,
+): Promise<PodcastPlaybackSession> {
+  return request<PodcastPlaybackSession>(
+    `/podcast-playback/sessions/${sessionID}/complete`,
+    {
+      method: 'POST',
+      keepalive,
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(
+        payload,
+      ),
+    },
+  )
+}
+
+export async function getPodcastListeningHistory(
+  token: string,
+  limit = 20,
+  offset = 0,
+): Promise<
+  PodcastListeningHistoryItem[]
+> {
+  return request<
+    PodcastListeningHistoryItem[]
+  >(
+    `/me/podcast-listening-history?limit=${limit}&offset=${offset}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function getPodcastContinueListening(
+  token: string,
+  limit = 20,
+  offset = 0,
+): Promise<
+  PodcastContinueListeningItem[]
+> {
+  return request<
+    PodcastContinueListeningItem[]
+  >(
+    `/me/podcast-continue-listening?limit=${limit}&offset=${offset}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+// -----------------------------------------------------------------
+// Artist following (Phase 3.9)
+// -----------------------------------------------------------------
+
+export async function getArtistFollowerCount(
+  artistID: number,
+): Promise<
+  import('../types/follow').ArtistFollowerCount
+> {
+  return request<
+    import('../types/follow').ArtistFollowerCount
+  >(
+    `/artists/${artistID}/followers/count`,
+  )
+}
+
+export async function getArtistFollowStatus(
+  artistID: number,
+  token: string,
+): Promise<
+  import('../types/follow').ArtistFollowStatus
+> {
+  return request<
+    import('../types/follow').ArtistFollowStatus
+  >(
+    `/artists/${artistID}/follow`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function followArtist(
+  artistID: number,
+  token: string,
+): Promise<
+  import('../types/follow').ArtistFollowStatus
+> {
+  return request<
+    import('../types/follow').ArtistFollowStatus
+  >(
+    `/artists/${artistID}/follow`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function unfollowArtist(
+  artistID: number,
+  token: string,
+): Promise<
+  import('../types/follow').ArtistFollowStatus
+> {
+  return request<
+    import('../types/follow').ArtistFollowStatus
+  >(
+    `/artists/${artistID}/follow`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+// -----------------------------------------------------------------
+// Podcasts (Phase 4.0)
+// -----------------------------------------------------------------
+
+export async function getPublishedPodcasts(
+  limit = 20,
+  offset = 0,
+): Promise<Podcast[]> {
+  return request<Podcast[]>(
+    `/podcasts?limit=${limit}&offset=${offset}`,
+  )
+}
+
+export async function getPublicPodcast(
+  podcastID: number,
+): Promise<PodcastDetails> {
+  return request<PodcastDetails>(
+    `/podcasts/${podcastID}`,
+  )
+}
+
+export async function getPublicPodcastBySlug(
+  slug: string,
+): Promise<PodcastDetails> {
+  return request<PodcastDetails>(
+    `/podcasts/slug/${encodeURIComponent(slug)}`,
+  )
+}
+
+export async function getPublicPodcastEpisode(
+  episodeID: number,
+): Promise<PodcastEpisode> {
+  return request<PodcastEpisode>(
+    `/podcast-episodes/${episodeID}`,
+  )
+}
+
+export async function getMyPodcasts(
+  token: string,
+): Promise<Podcast[]> {
+  return request<Podcast[]>(
+    '/me/podcasts',
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function getMyPodcast(
+  podcastID: number,
+  token: string,
+): Promise<PodcastDetails> {
+  return request<PodcastDetails>(
+    `/me/podcasts/${podcastID}`,
+    {
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function createPodcast(
+  payload: CreatePodcastInput,
+  token: string,
+): Promise<Podcast> {
+  return request<Podcast>(
+    '/podcasts',
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function updatePodcast(
+  podcastID: number,
+  payload: UpdatePodcastInput,
+  token: string,
+): Promise<Podcast> {
+  return request<Podcast>(
+    `/me/podcasts/${podcastID}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function updatePodcastArtwork(
+  podcastID: number,
+  payload: UpdatePodcastArtworkInput,
+  token: string,
+): Promise<Podcast> {
+  const formData = new FormData()
+
+  formData.append(
+    'artwork',
+    payload.artwork,
+  )
+
+  return request<Podcast>(
+    `/me/podcasts/${podcastID}/artwork`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+      body: formData,
+    },
+  )
+}
+
+export async function deletePodcast(
+  podcastID: number,
+  token: string,
+): Promise<void> {
+  return request<void>(
+    `/me/podcasts/${podcastID}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function createPodcastEpisode(
+  podcastID: number,
+  payload: CreatePodcastEpisodeInput,
+  token: string,
+): Promise<PodcastEpisode> {
+  return request<PodcastEpisode>(
+    `/me/podcasts/${podcastID}/episodes`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function updatePodcastEpisode(
+  episodeID: number,
+  payload: UpdatePodcastEpisodeInput,
+  token: string,
+): Promise<PodcastEpisode> {
+  return request<PodcastEpisode>(
+    `/me/podcast-episodes/${episodeID}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function updatePodcastEpisodeMedia(
+  episodeID: number,
+  payload: UpdatePodcastEpisodeMediaInput,
+  token: string,
+): Promise<PodcastEpisode> {
+  const formData = new FormData()
+
+  if (payload.audio) {
+    formData.append(
+      'audio',
+      payload.audio,
+    )
+  }
+
+  if (payload.artwork) {
+    formData.append(
+      'artwork',
+      payload.artwork,
+    )
+  }
+
+  return request<PodcastEpisode>(
+    `/me/podcast-episodes/${episodeID}/media`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+      body: formData,
+    },
+  )
+}
+
+export async function deletePodcastEpisode(
+  episodeID: number,
+  token: string,
+): Promise<void> {
+  return request<void>(
+    `/me/podcast-episodes/${episodeID}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+

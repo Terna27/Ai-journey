@@ -40,23 +40,31 @@ function AppLayout() {
         <nav className="sidebar-nav">
           <NavLink
             to="/"
+            end
             className={navClass}
           >
             Home
           </NavLink>
 
           <NavLink
-            to="/"
+            to="/discover"
             className={navClass}
           >
             Discover
           </NavLink>
 
           <NavLink
-            to="/"
+            to="/search"
             className={navClass}
           >
             Search
+          </NavLink>
+
+          <NavLink
+            to="/podcasts"
+            className={navClass}
+          >
+            Podcasts
           </NavLink>
 
           {isAuthenticated && (
@@ -69,10 +77,31 @@ function AppLayout() {
               </NavLink>
 
               <NavLink
+                to="/recently-played"
+                className={navClass}
+              >
+                Recently Played
+              </NavLink>
+
+              <NavLink
+                to="/podcast-history"
+                className={navClass}
+              >
+                Podcast History
+              </NavLink>
+
+              <NavLink
                 to="/playlists"
                 className={navClass}
               >
                 Playlists
+              </NavLink>
+
+              <NavLink
+                to="/my-podcasts"
+                className={navClass}
+              >
+                My Podcasts
               </NavLink>
             </>
           )}
@@ -117,9 +146,31 @@ function AppLayout() {
       <nav className="mobile-nav">
         <NavLink
           to="/"
+          end
           className={navClass}
         >
           Home
+        </NavLink>
+
+        <NavLink
+          to="/discover"
+          className={navClass}
+        >
+          Discover
+        </NavLink>
+
+        <NavLink
+          to="/search"
+          className={navClass}
+        >
+          Search
+        </NavLink>
+
+        <NavLink
+          to="/podcasts"
+          className={navClass}
+        >
+          Podcasts
         </NavLink>
 
         {isAuthenticated ? (
@@ -132,10 +183,24 @@ function AppLayout() {
             </NavLink>
 
             <NavLink
+              to="/recently-played"
+              className={navClass}
+            >
+              Recent
+            </NavLink>
+
+            <NavLink
               to="/playlists"
               className={navClass}
             >
               Playlists
+            </NavLink>
+
+            <NavLink
+              to="/my-podcasts"
+              className={navClass}
+            >
+              My Podcasts
             </NavLink>
 
             {isArtist && (

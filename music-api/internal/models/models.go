@@ -5,6 +5,8 @@ import "time"
 type Music struct {
 	ID            int       `json:"id"`
 	ArtistID      *int      `json:"artist_id"`
+	ReleaseID     *int      `json:"release_id"`
+	TrackNumber   *int      `json:"track_number"`
 	ArtistName    string    `json:"artist_name"`
 	SongTitle     string    `json:"song_title"`
 	Genre         string    `json:"genre"`
@@ -20,13 +22,27 @@ type Music struct {
 }
 
 type Artist struct {
-	ID           int       `json:"id"`
-	UserID       int       `json:"user_id,omitempty"`
-	Name         string    `json:"name"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID     int `json:"id"`
+	UserID int `json:"user_id,omitempty"`
+
+	Name  string `json:"name"`
+	Email string `json:"email"`
+
+	PasswordHash string `json:"-"`
+
+	Bio *string `json:"bio,omitempty"`
+
+	ProfileImageURL      *string `json:"profile_image_url,omitempty"`
+	ProfileImagePublicID *string `json:"-"`
+
+	HeroVideoURL      *string `json:"hero_video_url,omitempty"`
+	HeroVideoPublicID *string `json:"-"`
+
+	HeroVideoPosterURL      *string `json:"hero_video_poster_url,omitempty"`
+	HeroVideoPosterPublicID *string `json:"-"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type User struct {

@@ -1,0 +1,7 @@
+BEGIN;
+
+DROP TABLE IF EXISTS podcast_episodes;
+
+DROP TABLE IF EXISTS podcasts;
+
+COMMIT;

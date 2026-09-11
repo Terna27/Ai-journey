@@ -58,10 +58,61 @@ func (s *CloudinaryService) UploadImage(
 	filename string,
 	folder string,
 ) (CloudinaryUploadResult, error) {
+	return s.upload(
+		ctx,
+		file,
+		filename,
+		folder,
+		"image",
+		"image",
+	)
+}
+
+func (s *CloudinaryService) UploadAudio(
+	ctx context.Context,
+	file multipart.File,
+	filename string,
+	folder string,
+) (CloudinaryUploadResult, error) {
+	return s.upload(
+		ctx,
+		file,
+		filename,
+		folder,
+		"video",
+		"audio",
+	)
+}
+
+func (s *CloudinaryService) UploadVideo(
+	ctx context.Context,
+	file multipart.File,
+	filename string,
+	folder string,
+) (CloudinaryUploadResult, error) {
+	return s.upload(
+		ctx,
+		file,
+		filename,
+		folder,
+		"video",
+		"video",
+	)
+}
+
+func (s *CloudinaryService) upload(
+	ctx context.Context,
+	file multipart.File,
+	filename string,
+	folder string,
+	resourceType string,
+	mediaType string,
+) (CloudinaryUploadResult, error) {
 	publicID, err := generateCloudinaryPublicID(filename)
 	if err != nil {
 		return CloudinaryUploadResult{}, fmt.Errorf(
-			"failed to generate image public ID: %w",
+			"failed to generate %s public ID: %w",
+			mediaType,
 			err,
 		)
 	}
@@ -72,17 +123,21 @@ func (s *CloudinaryService) UploadImage(
 		uploader.UploadParams{
 			Folder:       folder,
 			PublicID:     publicID,
-			ResourceType: "image",
+			ResourceType: resourceType,
 		},
 	)
 	if err != nil {
 		return CloudinaryUploadResult{}, fmt.Errorf(
-			"failed to upload image to cloudinary: %w",
+			"failed to upload %s to cloudinary: %w",
+			mediaType,
 			err,
 		)
 	}
 
-	if err := validateCloudinaryResult(result, "image"); err != nil {
+	if err := validateCloudinaryResult(
+		result,
+		mediaType,
+	); err != nil {
 		return CloudinaryUploadResult{}, err
 	}
 
@@ -92,44 +147,62 @@ func (s *CloudinaryService) UploadImage(
 	}, nil
 }
 
-func (s *CloudinaryService) UploadAudio(
+func (s *CloudinaryService) DeleteAsset(
 	ctx context.Context,
-	file multipart.File,
-	filename string,
-	folder string,
-) (CloudinaryUploadResult, error) {
-	publicID, err := generateCloudinaryPublicID(filename)
-	if err != nil {
-		return CloudinaryUploadResult{}, fmt.Errorf(
-			"failed to generate audio public ID: %w",
-			err,
+	publicID string,
+	resourceType string,
+) error {
+	publicID = strings.TrimSpace(publicID)
+	resourceType = strings.TrimSpace(resourceType)
+
+	if publicID == "" {
+		return nil
+	}
+
+	if resourceType != "image" &&
+		resourceType != "video" {
+		return fmt.Errorf(
+			"unsupported cloudinary resource type: %s",
+			resourceType,
 		)
 	}
 
-	result, err := s.client.Upload.Upload(
+	invalidate := true
+
+	result, err := s.client.Upload.Destroy(
 		ctx,
-		file,
-		uploader.UploadParams{
-			Folder:       folder,
+		uploader.DestroyParams{
 			PublicID:     publicID,
-			ResourceType: "video",
+			ResourceType: resourceType,
+			Type:         "upload",
+			Invalidate:   &invalidate,
 		},
 	)
 	if err != nil {
-		return CloudinaryUploadResult{}, fmt.Errorf(
-			"failed to upload audio to cloudinary: %w",
+		return fmt.Errorf(
+			"failed to delete cloudinary asset: %w",
 			err,
 		)
 	}
 
-	if err := validateCloudinaryResult(result, "audio"); err != nil {
-		return CloudinaryUploadResult{}, err
+	if result == nil {
+		return fmt.Errorf(
+			"cloudinary returned an empty delete result",
+		)
 	}
 
-	return CloudinaryUploadResult{
-		URL:      result.SecureURL,
-		PublicID: result.PublicID,
-	}, nil
+	switch strings.ToLower(
+		strings.TrimSpace(result.Result),
+	) {
+	case "ok", "not found":
+		return nil
+
+	default:
+		return fmt.Errorf(
+			"cloudinary failed to delete asset: %s",
+			result.Result,
+		)
+	}
 }
 
 func validateCloudinaryResult(
@@ -143,7 +216,9 @@ func validateCloudinaryResult(
 		)
 	}
 
-	if message := cloudinaryResponseError(result.Response); message != "" {
+	if message := cloudinaryResponseError(
+		result.Response,
+	); message != "" {
 		return fmt.Errorf(
 			"cloudinary %s upload failed: %s",
 			mediaType,
@@ -236,7 +311,9 @@ func generateCloudinaryPublicID(filename string) (string, error) {
 }
 
 func sanitizePublicID(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ToLower(
+		strings.TrimSpace(value),
+	)
 
 	var builder strings.Builder
 	previousDash := false
@@ -257,5 +334,8 @@ func sanitizePublicID(value string) string {
 		}
 	}
 
-	return strings.Trim(builder.String(), "-")
+	return strings.Trim(
+		builder.String(),
+		"-",
+	)
 }

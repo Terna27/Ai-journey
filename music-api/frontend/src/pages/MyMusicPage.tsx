@@ -9,6 +9,7 @@ import {
   useLocation,
 } from 'react-router-dom'
 
+import LyricsEditor from '../components/music/LyricsEditor'
 import { useAuth } from '../context/AuthContext'
 import { usePlayer } from '../context/PlayerContext'
 import { getMusic } from '../lib/api'
@@ -36,7 +37,10 @@ function formatDate(value: string) {
 }
 
 function MyMusicPage() {
-  const { artist } = useAuth()
+  const {
+    artist,
+    token,
+  } = useAuth()
 
   const {
     currentTrack,
@@ -54,6 +58,11 @@ function MyMusicPage() {
 
   const [error, setError] =
     useState('')
+
+  const [
+    lyricsTrack,
+    setLyricsTrack,
+  ] = useState<Music | null>(null)
 
   const locationState =
     location.state as LocationState | null
@@ -108,17 +117,35 @@ function MyMusicPage() {
 
   return (
     <>
-      <header className="page-header">
-        <p className="eyebrow">
-          YOUR LIBRARY
-        </p>
+      <header className="page-header my-music-page-header">
+        <div>
+          <p className="eyebrow">
+            YOUR LIBRARY
+          </p>
 
-        <h2>My Music</h2>
+          <h2>My Music</h2>
 
-        <p>
-          Manage and listen to the songs
-          you have uploaded.
-        </p>
+          <p>
+            Manage and listen to the
+            songs you have uploaded.
+          </p>
+        </div>
+
+        <div className="my-music-header-actions">
+          <Link
+            to="/my-releases"
+            className="release-manager-link"
+          >
+            Manage Releases
+          </Link>
+
+          <Link
+            to="/upload"
+            className="release-primary-button"
+          >
+            Upload Music
+          </Link>
+        </div>
       </header>
 
       {locationState?.message && (
@@ -247,6 +274,20 @@ function MyMusicPage() {
                         </span>
                       </div>
 
+                      {track.release_id && (
+                        <Link
+                          to={`/my-releases/${track.release_id}`}
+                          className="music-release-badge"
+                        >
+                          Release #
+                          {track.release_id}
+                          {' • '}
+                          Track{' '}
+                          {track.track_number ??
+                            '—'}
+                        </Link>
+                      )}
+
                       <p className="music-upload-date">
                         Uploaded{' '}
                         {formatDate(
@@ -265,12 +306,38 @@ function MyMusicPage() {
                           Audio unavailable
                         </p>
                       )}
+
+                      <div className="my-music-management-actions">
+                        <button
+                          type="button"
+                          className="manage-lyrics-button"
+                          disabled={!token}
+                          onClick={() =>
+                            setLyricsTrack(
+                              track,
+                            )
+                          }
+                        >
+                          Manage Lyrics
+                        </button>
+                      </div>
                     </div>
                   </article>
                 )
               },
             )}
           </section>
+        )}
+
+      {lyricsTrack &&
+        token && (
+          <LyricsEditor
+            track={lyricsTrack}
+            token={token}
+            onClose={() =>
+              setLyricsTrack(null)
+            }
+          />
         )}
     </>
   )

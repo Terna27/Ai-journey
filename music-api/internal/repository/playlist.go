@@ -464,7 +464,6 @@ func (r *PlaylistRepository) RemoveTrack(
 
 	return nil
 }
-
 func (r *PlaylistRepository) GetTracks(
 	ctx context.Context,
 	playlistID int64,
@@ -475,6 +474,8 @@ func (r *PlaylistRepository) GetTracks(
 		SELECT
 			m.id,
 			m.artist_id,
+			m.release_id,
+			m.track_number,
 			m.artist_name,
 			m.song_title,
 			m.genre,
@@ -513,6 +514,8 @@ func (r *PlaylistRepository) GetTracks(
 		err := rows.Scan(
 			&track.ID,
 			&track.ArtistID,
+			&track.ReleaseID,
+			&track.TrackNumber,
 			&track.ArtistName,
 			&track.SongTitle,
 			&track.Genre,

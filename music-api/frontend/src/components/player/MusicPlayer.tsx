@@ -1,27 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from "react";
 
-import { usePlayer } from '../../context/PlayerContext'
+import { usePlayer } from "../../context/PlayerContext";
 
-import QueuePanel from '../player/QueuePanel'
+import LyricsPanel from "./LyricsPanel";
+import QueuePanel from "./QueuePanel";
 
 function formatTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) {
-    return '0:00'
+    return "0:00";
   }
 
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = Math.floor(
-    seconds % 60,
-  )
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
 
-  return `${minutes}:${remainingSeconds
-    .toString()
-    .padStart(2, '0')}`
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 function MusicPlayer() {
   const {
     currentTrack,
+    currentPlayableItem,
     isPlaying,
     currentTime,
     duration,
@@ -32,40 +30,71 @@ function MusicPlayer() {
     seek,
     playNext,
     playPrevious,
-  } = usePlayer()
+  } = usePlayer();
 
-  const [isQueueOpen, setIsQueueOpen] =
-    useState(false)
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+
+  const [isLyricsOpen, setIsLyricsOpen] = useState(false);
+
+  /*
+   * If playback is cleared completely, any auxiliary
+   * player panels should close as well.
+   */
+  useEffect(() => {
+    if (!currentPlayableItem) {
+      setIsLyricsOpen(false);
+      setIsQueueOpen(false);
+    }
+
+    if (!currentTrack) {
+      setIsLyricsOpen(false);
+    }
+  }, [currentPlayableItem, currentTrack]);
 
   const progress =
-    duration > 0
-      ? Math.min(
-          (currentTime / duration) * 100,
-          100,
-        )
-      : 0
+    duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
   const hasNextTrack =
-    currentQueueIndex >= 0 &&
-    currentQueueIndex < queue.length - 1
+    currentQueueIndex >= 0 && currentQueueIndex < queue.length - 1;
+
+  const openQueue = () => {
+    setIsLyricsOpen(false);
+
+    setIsQueueOpen((open) => !open);
+  };
+
+  const openLyrics = () => {
+    if (!currentTrack) {
+      return;
+    }
+
+    setIsQueueOpen(false);
+
+    setIsLyricsOpen((open) => !open);
+  };
 
   return (
     <>
-      {isQueueOpen && (
-        <QueuePanel
-          onClose={() =>
-            setIsQueueOpen(false)
-          }
+      {isQueueOpen && <QueuePanel onClose={() => setIsQueueOpen(false)} />}
+
+      {isLyricsOpen && currentTrack && (
+        <LyricsPanel
+          musicID={currentTrack.id}
+          songTitle={currentTrack.song_title}
+          artistName={currentTrack.artist_name}
+          currentTime={currentTime}
+          onSeek={seek}
+          onClose={() => setIsLyricsOpen(false)}
         />
       )}
 
       <div className="player">
         <div className="player-track">
           <div className="player-cover">
-            {currentTrack?.image_url ? (
+            {currentPlayableItem?.artwork_url ? (
               <img
-                src={currentTrack.image_url}
-                alt={`${currentTrack.song_title} cover`}
+                src={currentPlayableItem.artwork_url}
+                alt={`${currentPlayableItem.title} artwork`}
               />
             ) : (
               <span>♪</span>
@@ -74,19 +103,13 @@ function MusicPlayer() {
 
           <div className="player-track-info">
             <strong>
-              {currentTrack?.song_title ??
-                'Select a song'}
+              {currentPlayableItem?.title ?? "Select something to play"}
             </strong>
 
-            <span>
-              {currentTrack?.artist_name ??
-                'Nothing playing'}
-            </span>
+            <span>{currentPlayableItem?.subtitle ?? "Nothing playing"}</span>
 
             {playbackError && (
-              <small className="player-error">
-                {playbackError}
-              </small>
+              <small className="player-error">{playbackError}</small>
             )}
           </div>
         </div>
@@ -96,7 +119,7 @@ function MusicPlayer() {
             type="button"
             className="player-control"
             aria-label="Previous track"
-            disabled={!currentTrack}
+            disabled={!currentPlayableItem}
             onClick={playPrevious}
           >
             ◀
@@ -105,13 +128,11 @@ function MusicPlayer() {
           <button
             type="button"
             className="player-play"
-            aria-label={
-              isPlaying ? 'Pause' : 'Play'
-            }
+            aria-label={isPlaying ? "Pause" : "Play"}
             onClick={togglePlay}
-            disabled={!currentTrack}
+            disabled={!currentPlayableItem}
           >
-            {isPlaying ? '❚❚' : '▶'}
+            {isPlaying ? "❚❚" : "▶"}
           </button>
 
           <button
@@ -126,57 +147,46 @@ function MusicPlayer() {
 
           <button
             type="button"
+            className="player-control player-lyrics-button"
+            aria-label={isLyricsOpen ? "Close lyrics" : "Open lyrics"}
+            aria-expanded={isLyricsOpen}
+            disabled={!currentTrack}
+            onClick={openLyrics}
+          >
+            ♪
+          </button>
+
+          <button
+            type="button"
             className="player-control player-queue-button"
-            aria-label={
-              isQueueOpen
-                ? 'Close queue'
-                : 'Open queue'
-            }
+            aria-label={isQueueOpen ? "Close queue" : "Open queue"}
             aria-expanded={isQueueOpen}
-            onClick={() =>
-              setIsQueueOpen(
-                (open) => !open,
-              )
-            }
+            onClick={openQueue}
           >
             ☰
           </button>
         </div>
 
         <div className="player-progress">
-          <span>
-            {formatTime(currentTime)}
-          </span>
+          <span>{formatTime(currentTime)}</span>
 
           <button
             type="button"
             className="player-progress-button"
             aria-label="Seek through track"
-            disabled={!currentTrack || duration <= 0}
+            disabled={!currentPlayableItem || duration <= 0}
             onClick={(event) => {
-              if (
-                !currentTrack ||
-                duration <= 0
-              ) {
-                return
+              if (!currentPlayableItem || duration <= 0) {
+                return;
               }
 
-              const rect =
-                event.currentTarget.getBoundingClientRect()
+              const rect = event.currentTarget.getBoundingClientRect();
 
-              const percentage =
-                (event.clientX - rect.left) /
-                rect.width
+              const percentage = (event.clientX - rect.left) / rect.width;
 
-              const boundedPercentage =
-                Math.max(
-                  0,
-                  Math.min(percentage, 1),
-                )
+              const boundedPercentage = Math.max(0, Math.min(percentage, 1));
 
-              seek(
-                boundedPercentage * duration,
-              )
+              seek(boundedPercentage * duration);
             }}
           >
             <span className="progress-track">
@@ -189,13 +199,11 @@ function MusicPlayer() {
             </span>
           </button>
 
-          <span>
-            {formatTime(duration)}
-          </span>
+          <span>{formatTime(duration)}</span>
         </div>
       </div>
     </>
-  )
+  );
 }
 
-export default MusicPlayer
+export default MusicPlayer;

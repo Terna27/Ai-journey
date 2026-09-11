@@ -1,6 +1,8 @@
 export type Music = {
   id: number
   artist_id: number | null
+  release_id: number | null
+  track_number: number | null
   artist_name: string
   song_title: string
   genre: string

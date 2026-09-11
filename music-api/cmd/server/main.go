@@ -63,6 +63,11 @@ func main() {
 			db.Pool,
 		)
 
+	artistFollowRepo :=
+		repository.NewArtistFollowRepository(
+			db.Pool,
+		)
+
 	userRepo :=
 		repository.NewUserRepository(
 			db.Pool,
@@ -78,8 +83,43 @@ func main() {
 			db.Pool,
 		)
 
+	releaseRepo :=
+		repository.NewReleaseRepository(
+			db.Pool,
+		)
+
+	searchRepo :=
+		repository.NewSearchRepository(
+			db.Pool,
+		)
+
+	discoveryRepo :=
+		repository.NewDiscoveryRepository(
+			db.Pool,
+		)
+
 	emailVerificationRepo :=
 		repository.NewEmailVerificationRepository(
+			db.Pool,
+		)
+
+	lyricsRepo :=
+		repository.NewLyricsRepository(
+			db.Pool,
+		)
+
+	playbackRepo :=
+		repository.NewPlaybackRepository(
+			db.Pool,
+		)
+
+	podcastRepo :=
+		repository.NewPodcastRepository(
+			db.Pool,
+		)
+
+	podcastPlaybackRepo :=
+		repository.NewPodcastPlaybackRepository(
 			db.Pool,
 		)
 
@@ -98,14 +138,55 @@ func main() {
 			playlistRepo,
 		)
 
+	releaseService :=
+		services.NewReleaseService(
+			releaseRepo,
+		)
+
+	searchService :=
+		services.NewSearchService(
+			searchRepo,
+		)
+
+	discoveryService :=
+		services.NewDiscoveryService(
+			discoveryRepo,
+		)
+
 	artistService :=
 		services.NewArtistService(
+			artistRepo,
+		)
+
+	artistFollowService :=
+		services.NewArtistFollowService(
+			artistFollowRepo,
 			artistRepo,
 		)
 
 	userService :=
 		services.NewUserService(
 			userRepo,
+		)
+
+	lyricsService :=
+		services.NewLyricsService(
+			lyricsRepo,
+		)
+
+	playbackService :=
+		services.NewPlaybackService(
+			playbackRepo,
+		)
+
+	podcastService :=
+		services.NewPodcastService(
+			podcastRepo,
+		)
+
+	podcastPlaybackService :=
+		services.NewPodcastPlaybackService(
+			podcastPlaybackRepo,
 		)
 
 	jwtService :=
@@ -169,6 +250,47 @@ func main() {
 	playlistHandler :=
 		handler.NewPlaylistHandler(
 			playlistService,
+		)
+
+	releaseHandler :=
+		handler.NewReleaseHandler(
+			releaseService,
+		)
+
+	searchHandler :=
+		handler.NewSearchHandler(
+			searchService,
+		)
+
+	discoveryHandler :=
+		handler.NewDiscoveryHandler(
+			discoveryService,
+		)
+
+	lyricsHandler :=
+		handler.NewLyricsHandler(
+			lyricsService,
+		)
+
+	artistFollowHandler :=
+		handler.NewArtistFollowHandler(
+			artistFollowService,
+		)
+
+	playbackHandler :=
+		handler.NewPlaybackHandler(
+			playbackService,
+		)
+
+	podcastHandler :=
+		handler.NewPodcastHandler(
+			podcastService,
+			cloudinaryService,
+		)
+
+	podcastPlaybackHandler :=
+		handler.NewPodcastPlaybackHandler(
+			podcastPlaybackService,
 		)
 
 	healthHandler :=
@@ -235,6 +357,208 @@ func main() {
 	)
 
 	// =========================
+	// PUBLIC PODCASTS
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/podcasts",
+		podcastHandler.GetPublishedPodcasts,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/podcasts/{id}",
+		podcastHandler.GetPublicPodcast,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/podcasts/slug/{slug}",
+		podcastHandler.GetPublicPodcastBySlug,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/podcast-episodes/{id}",
+		podcastHandler.GetPublicEpisode,
+	)
+
+	// =========================
+	// CREATE PODCAST
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/podcasts",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.CreatePodcast,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// CURRENT USER PODCASTS
+	// =========================
+
+	mux.Handle(
+		"GET /api/v1/me/podcasts",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.GetMyPodcasts,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/me/podcasts/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.GetMyPodcast,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PATCH /api/v1/me/podcasts/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.UpdatePodcast,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/me/podcasts/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.DeletePodcast,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PATCH /api/v1/me/podcasts/{id}/artwork",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.UpdatePodcastArtwork,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PODCAST EPISODES
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/me/podcasts/{id}/episodes",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.CreateEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PATCH /api/v1/me/podcast-episodes/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.UpdateEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/me/podcast-episodes/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.DeleteEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PATCH /api/v1/me/podcast-episodes/{id}/media",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastHandler.UpdateEpisodeMedia,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// CURRENT ARTIST RELEASES
+	// =========================
+
+	mux.Handle(
+		"GET /api/v1/me/releases",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.GetMyReleases,
+					),
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/me/releases/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.GetMyRelease,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
 	// LIKED MUSIC LIBRARY
 	// =========================
 
@@ -254,6 +578,7 @@ func main() {
 	// =========================
 	// ARTIST PROFILE
 	// =========================
+
 	mux.HandleFunc(
 		"GET /api/v1/artists/{id}",
 		musicHandler.GetArtistProfile,
@@ -272,6 +597,215 @@ func main() {
 		),
 	)
 
+	mux.Handle(
+		"PATCH /api/v1/me/artist-profile",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						musicHandler.UpdateArtistProfile,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// ARTIST RELEASES
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/artists/{id}/releases",
+		releaseHandler.GetArtistReleases,
+	)
+
+	// =========================
+	// PUBLIC RELEASES
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/releases/{id}",
+		releaseHandler.GetRelease,
+	)
+
+	// =========================
+	// CREATE RELEASE
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/releases",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.CreateRelease,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// UPDATE RELEASE
+	// =========================
+
+	mux.Handle(
+		"PUT /api/v1/releases/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.UpdateRelease,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// DELETE RELEASE
+	// =========================
+
+	mux.Handle(
+		"DELETE /api/v1/releases/{id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.DeleteRelease,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// ADD TRACK TO RELEASE
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/releases/{id}/tracks/{musicID}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.AddTrack,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// REMOVE TRACK FROM RELEASE
+	// =========================
+
+	mux.Handle(
+		"DELETE /api/v1/releases/{id}/tracks/{musicID}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						releaseHandler.RemoveTrack,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PUBLIC ARTIST FOLLOW COUNT
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/artists/{id}/followers/count",
+		artistFollowHandler.GetFollowerCount,
+	)
+
+	// =========================
+	// ARTIST FOLLOW
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/artists/{id}/follow",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					artistFollowHandler.Follow,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/artists/{id}/follow",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					artistFollowHandler.Unfollow,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/artists/{id}/follow",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					artistFollowHandler.GetStatus,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PUBLIC SEARCH
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/search",
+		searchHandler.Search,
+	)
+
+	// =========================
+	// PUBLIC DISCOVERY
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/discover",
+		discoveryHandler.Discover,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/discovery/hero-artists",
+		discoveryHandler.HeroArtists,
+	)
+
 	// =========================
 	// PUBLIC MUSIC
 	// =========================
@@ -284,6 +818,15 @@ func main() {
 	mux.HandleFunc(
 		"GET /api/v1/music/{id}",
 		musicHandler.GetMusic,
+	)
+
+	// =========================
+	// PUBLIC LYRICS
+	// =========================
+
+	mux.HandleFunc(
+		"GET /api/v1/music/{id}/lyrics",
+		lyricsHandler.GetLyrics,
 	)
 
 	// =========================
@@ -360,6 +903,46 @@ func main() {
 					artistRepo,
 					http.HandlerFunc(
 						musicHandler.DeleteMusic,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// CREATE / UPDATE LYRICS
+	// =========================
+
+	mux.Handle(
+		"PUT /api/v1/music/{id}/lyrics",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						lyricsHandler.UpsertLyrics,
+					),
+				),
+			),
+		),
+	)
+
+	// =========================
+	// DELETE LYRICS
+	// =========================
+
+	mux.Handle(
+		"DELETE /api/v1/music/{id}/lyrics",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				middleware.RequireArtist(
+					artistRepo,
+					http.HandlerFunc(
+						lyricsHandler.DeleteLyrics,
 					),
 				),
 			),
@@ -496,6 +1079,170 @@ func main() {
 	)
 
 	// =========================
+	// PLAYBACK TRACKING
+	// =========================
+	//
+	// Playback endpoints are for normal authenticated
+	// listeners: JWT -> verified user -> handler. No
+	// artist profile requirement.
+
+	mux.Handle(
+		"POST /api/v1/playback/sessions",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playbackHandler.CreateSession,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/playback/sessions/{session_id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playbackHandler.GetSession,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PATCH /api/v1/playback/sessions/{session_id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playbackHandler.UpdateProgress,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/playback/sessions/{session_id}/complete",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playbackHandler.CompleteSession,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// LISTENING HISTORY
+	// =========================
+
+	mux.Handle(
+		"GET /api/v1/me/listening-history",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					playbackHandler.GetListeningHistory,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PODCAST PLAYBACK TRACKING
+	// (Phase 4.1)
+	//
+	// Dedicated podcast playback endpoints. Podcast episode
+	// ids must never be submitted to the music playback
+	// session routes above.
+	// =========================
+
+	mux.Handle(
+		"POST /api/v1/podcast-playback/sessions",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastPlaybackHandler.CreateSession,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/podcast-playback/sessions/{session_id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastPlaybackHandler.GetSession,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"PATCH /api/v1/podcast-playback/sessions/{session_id}",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastPlaybackHandler.UpdateProgress,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/podcast-playback/sessions/{session_id}/complete",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastPlaybackHandler.CompleteSession,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/me/podcast-listening-history",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastPlaybackHandler.GetPodcastListeningHistory,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/me/podcast-continue-listening",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastPlaybackHandler.GetContinueListening,
+				),
+			),
+		),
+	)
+
+	// =========================
 	// LEGACY PUBLIC MUSIC
 	// =========================
 
@@ -625,9 +1372,10 @@ func main() {
 			)
 		defer cancel()
 
-		if err := server.Shutdown(
-			shutdownCtx,
-		); err != nil {
+		if err :=
+			server.Shutdown(
+				shutdownCtx,
+			); err != nil {
 
 			log.Printf(
 				"graceful shutdown failed: %v",

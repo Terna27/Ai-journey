@@ -44,6 +44,8 @@ func (r *MusicRepository) Create(
 		RETURNING
 			id,
 			artist_id,
+			release_id,
+			track_number,
 			artist_name,
 			song_title,
 			genre,
@@ -73,6 +75,8 @@ func (r *MusicRepository) Create(
 	).Scan(
 		&music.ID,
 		&music.ArtistID,
+		&music.ReleaseID,
+		&music.TrackNumber,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -123,6 +127,8 @@ func (r *MusicRepository) GetAll(
 		SELECT
 			id,
 			artist_id,
+			release_id,
+			track_number,
 			artist_name,
 			song_title,
 			genre,
@@ -173,6 +179,8 @@ func (r *MusicRepository) GetAll(
 		err := rows.Scan(
 			&music.ID,
 			&music.ArtistID,
+			&music.ReleaseID,
+			&music.TrackNumber,
 			&music.ArtistName,
 			&music.SongTitle,
 			&music.Genre,
@@ -190,7 +198,10 @@ func (r *MusicRepository) GetAll(
 			return nil, err
 		}
 
-		musicList = append(musicList, music)
+		musicList = append(
+			musicList,
+			music,
+		)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -208,6 +219,8 @@ func (r *MusicRepository) GetByID(
 		SELECT
 			id,
 			artist_id,
+			release_id,
+			track_number,
 			artist_name,
 			song_title,
 			genre,
@@ -233,6 +246,8 @@ func (r *MusicRepository) GetByID(
 	).Scan(
 		&music.ID,
 		&music.ArtistID,
+		&music.ReleaseID,
+		&music.TrackNumber,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -248,7 +263,10 @@ func (r *MusicRepository) GetByID(
 	)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(
+			err,
+			pgx.ErrNoRows,
+		) {
 			return models.Music{}, pgx.ErrNoRows
 		}
 
@@ -281,6 +299,8 @@ func (r *MusicRepository) Update(
 		RETURNING
 			id,
 			artist_id,
+			release_id,
+			track_number,
 			artist_name,
 			song_title,
 			genre,
@@ -311,6 +331,8 @@ func (r *MusicRepository) Update(
 	).Scan(
 		&music.ID,
 		&music.ArtistID,
+		&music.ReleaseID,
+		&music.TrackNumber,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -326,7 +348,10 @@ func (r *MusicRepository) Update(
 	)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(
+			err,
+			pgx.ErrNoRows,
+		) {
 			return models.Music{}, pgx.ErrNoRows
 		}
 
@@ -389,7 +414,10 @@ func (r *MusicRepository) RecordLike(
 	).Scan(&exists)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(
+			err,
+			pgx.ErrNoRows,
+		) {
 			return models.Music{}, pgx.ErrNoRows
 		}
 
@@ -425,6 +453,8 @@ func (r *MusicRepository) RecordLike(
 		RETURNING
 			id,
 			artist_id,
+			release_id,
+			track_number,
 			artist_name,
 			song_title,
 			genre,
@@ -448,6 +478,8 @@ func (r *MusicRepository) RecordLike(
 	).Scan(
 		&music.ID,
 		&music.ArtistID,
+		&music.ReleaseID,
+		&music.TrackNumber,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
@@ -483,6 +515,8 @@ func (r *MusicRepository) GetByArtistID(
 		SELECT
 			id,
 			artist_id,
+			release_id,
+			track_number,
 			artist_name,
 			song_title,
 			genre,
@@ -508,9 +542,13 @@ func (r *MusicRepository) GetByArtistID(
 	if err != nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
-	tracks := make([]models.Music, 0)
+	tracks := make(
+		[]models.Music,
+		0,
+	)
 
 	for rows.Next() {
 		var music models.Music
@@ -518,6 +556,8 @@ func (r *MusicRepository) GetByArtistID(
 		err := rows.Scan(
 			&music.ID,
 			&music.ArtistID,
+			&music.ReleaseID,
+			&music.TrackNumber,
 			&music.ArtistName,
 			&music.SongTitle,
 			&music.Genre,
@@ -531,11 +571,15 @@ func (r *MusicRepository) GetByArtistID(
 			&music.Rating,
 			&music.DatePosted,
 		)
+
 		if err != nil {
 			return nil, err
 		}
 
-		tracks = append(tracks, music)
+		tracks = append(
+			tracks,
+			music,
+		)
 	}
 
 	if err := rows.Err(); err != nil {

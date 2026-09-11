@@ -49,9 +49,9 @@ func (r *UserMusicLikeRepository) LikeMusic(
 	err = tx.QueryRow(
 		ctx,
 		`
-			SELECT id
-			FROM music
-			WHERE id = $1
+		SELECT id
+		FROM music
+		WHERE id = $1
 		`,
 		musicID,
 	).Scan(
@@ -73,12 +73,12 @@ func (r *UserMusicLikeRepository) LikeMusic(
 	result, err := tx.Exec(
 		ctx,
 		`
-			INSERT INTO user_music_likes (
-				user_id,
-				music_id
-			)
-			VALUES ($1, $2)
-			ON CONFLICT DO NOTHING
+		INSERT INTO user_music_likes (
+			user_id,
+			music_id
+		)
+		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
 		`,
 		userID,
 		musicID,
@@ -99,24 +99,26 @@ func (r *UserMusicLikeRepository) LikeMusic(
 			tx,
 			musicID,
 			`
-				UPDATE music
-				SET likes = likes + 1
-				WHERE id = $1
-				RETURNING
-					id,
-					artist_id,
-					artist_name,
-					song_title,
-					genre,
-					COALESCE(image_url, ''),
-					COALESCE(image_public_id, ''),
-					COALESCE(audio_url, ''),
-					COALESCE(audio_public_id, ''),
-					COALESCE(audio_key, ''),
-					likes,
-					loves,
-					rating,
-					date_posted
+			UPDATE music
+			SET likes = likes + 1
+			WHERE id = $1
+			RETURNING
+				id,
+				artist_id,
+				release_id,
+				track_number,
+				artist_name,
+				song_title,
+				genre,
+				COALESCE(image_url, ''),
+				COALESCE(image_public_id, ''),
+				COALESCE(audio_url, ''),
+				COALESCE(audio_public_id, ''),
+				COALESCE(audio_key, ''),
+				likes,
+				loves,
+				rating,
+				date_posted
 			`,
 		)
 
@@ -154,9 +156,9 @@ func (r *UserMusicLikeRepository) UnlikeMusic(
 	err = tx.QueryRow(
 		ctx,
 		`
-			SELECT id
-			FROM music
-			WHERE id = $1
+		SELECT id
+		FROM music
+		WHERE id = $1
 		`,
 		musicID,
 	).Scan(
@@ -178,9 +180,9 @@ func (r *UserMusicLikeRepository) UnlikeMusic(
 	result, err := tx.Exec(
 		ctx,
 		`
-			DELETE FROM user_music_likes
-			WHERE user_id = $1
-			  AND music_id = $2
+		DELETE FROM user_music_likes
+		WHERE user_id = $1
+		  AND music_id = $2
 		`,
 		userID,
 		musicID,
@@ -201,27 +203,29 @@ func (r *UserMusicLikeRepository) UnlikeMusic(
 			tx,
 			musicID,
 			`
-				UPDATE music
-				SET likes = GREATEST(
-					likes - 1,
-					0
-				)
-				WHERE id = $1
-				RETURNING
-					id,
-					artist_id,
-					artist_name,
-					song_title,
-					genre,
-					COALESCE(image_url, ''),
-					COALESCE(image_public_id, ''),
-					COALESCE(audio_url, ''),
-					COALESCE(audio_public_id, ''),
-					COALESCE(audio_key, ''),
-					likes,
-					loves,
-					rating,
-					date_posted
+			UPDATE music
+			SET likes = GREATEST(
+				likes - 1,
+				0
+			)
+			WHERE id = $1
+			RETURNING
+				id,
+				artist_id,
+				release_id,
+				track_number,
+				artist_name,
+				song_title,
+				genre,
+				COALESCE(image_url, ''),
+				COALESCE(image_public_id, ''),
+				COALESCE(audio_url, ''),
+				COALESCE(audio_public_id, ''),
+				COALESCE(audio_key, ''),
+				likes,
+				loves,
+				rating,
+				date_posted
 			`,
 		)
 
@@ -245,26 +249,28 @@ func (r *UserMusicLikeRepository) GetLikedMusic(
 	rows, err := r.DB.Query(
 		ctx,
 		`
-			SELECT
-				m.id,
-				m.artist_id,
-				m.artist_name,
-				m.song_title,
-				m.genre,
-				COALESCE(m.image_url, ''),
-				COALESCE(m.image_public_id, ''),
-				COALESCE(m.audio_url, ''),
-				COALESCE(m.audio_public_id, ''),
-				COALESCE(m.audio_key, ''),
-				m.likes,
-				m.loves,
-				m.rating,
-				m.date_posted
-			FROM user_music_likes uml
-			INNER JOIN music m
-				ON m.id = uml.music_id
-			WHERE uml.user_id = $1
-			ORDER BY uml.created_at DESC
+		SELECT
+			m.id,
+			m.artist_id,
+			m.release_id,
+			m.track_number,
+			m.artist_name,
+			m.song_title,
+			m.genre,
+			COALESCE(m.image_url, ''),
+			COALESCE(m.image_public_id, ''),
+			COALESCE(m.audio_url, ''),
+			COALESCE(m.audio_public_id, ''),
+			COALESCE(m.audio_key, ''),
+			m.likes,
+			m.loves,
+			m.rating,
+			m.date_posted
+		FROM user_music_likes uml
+		INNER JOIN music m
+			ON m.id = uml.music_id
+		WHERE uml.user_id = $1
+		ORDER BY uml.created_at DESC
 		`,
 		userID,
 	)
@@ -287,6 +293,8 @@ func (r *UserMusicLikeRepository) GetLikedMusic(
 		err := rows.Scan(
 			&music.ID,
 			&music.ArtistID,
+			&music.ReleaseID,
+			&music.TrackNumber,
 			&music.ArtistName,
 			&music.SongTitle,
 			&music.Genre,
@@ -333,12 +341,12 @@ func (r *UserMusicLikeRepository) IsLiked(
 	err := r.DB.QueryRow(
 		ctx,
 		`
-			SELECT EXISTS (
-				SELECT 1
-				FROM user_music_likes
-				WHERE user_id = $1
-				  AND music_id = $2
-			)
+		SELECT EXISTS (
+			SELECT 1
+			FROM user_music_likes
+			WHERE user_id = $1
+			  AND music_id = $2
+		)
 		`,
 		userID,
 		musicID,
@@ -368,6 +376,8 @@ func updateAndReturnMusic(
 	).Scan(
 		&music.ID,
 		&music.ArtistID,
+		&music.ReleaseID,
+		&music.TrackNumber,
 		&music.ArtistName,
 		&music.SongTitle,
 		&music.Genre,
