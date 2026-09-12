@@ -139,6 +139,9 @@ function PodcastLiveControlPanel({
   const [micEnabled, setMicEnabled] =
     useState(false)
 
+  const [listenerCount, setListenerCount] =
+    useState(0)
+
   const audioRef =
     useRef<HTMLAudioElement | null>(
       null,
@@ -150,6 +153,10 @@ function PodcastLiveControlPanel({
     )
 
   const unsubscribeStateRef = useRef<
+    (() => void) | null
+  >(null)
+
+  const unsubscribeParticipantCountRef = useRef<
     (() => void) | null
   >(null)
 
@@ -245,6 +252,9 @@ function PodcastLiveControlPanel({
       unsubscribeStateRef
         .current?.()
 
+      unsubscribeParticipantCountRef
+        .current?.()
+
       roomRef.current?.disconnect()
 
       roomRef.current = null
@@ -317,6 +327,11 @@ function PodcastLiveControlPanel({
             setRoomState,
           )
 
+        unsubscribeParticipantCountRef.current =
+          room.onParticipantCountChange(
+            setListenerCount,
+          )
+
         roomRef.current = room
 
         // One audio surface at a time: going live stops
@@ -335,6 +350,12 @@ function PodcastLiveControlPanel({
           .current?.()
 
         unsubscribeStateRef.current =
+          null
+
+        unsubscribeParticipantCountRef
+          .current?.()
+
+        unsubscribeParticipantCountRef.current =
           null
 
         roomRef.current?.disconnect()
@@ -440,6 +461,7 @@ function PodcastLiveControlPanel({
 
       setRoomState('idle')
       setMicEnabled(false)
+      setListenerCount(0)
 
       await runLiveAction(
         () =>
@@ -710,6 +732,12 @@ function PodcastLiveControlPanel({
                 'connected'
                   ? 'On air'
                   : 'Reconnecting…'}
+              </span>
+
+              <span className="podcast-live-connection">
+                {listenerCount === 1
+                  ? '1 listener'
+                  : `${listenerCount} listeners`}
               </span>
             </>
           ) : (

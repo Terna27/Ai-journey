@@ -17,6 +17,14 @@ type Config struct {
 	EmailFrom    string
 	FrontendURL  string
 
+	// Live audio provider (LiveKit). Optional: when unset,
+	// the live token endpoints return a controlled 503
+	// instead of minting tokens. Scheduling and state
+	// management work without a provider.
+	LiveKitURL       string
+	LiveKitAPIKey    string
+	LiveKitAPISecret string
+
 	CORSAllowedOrigins []string
 
 	ReadTimeout     time.Duration
@@ -53,6 +61,18 @@ func Load() (*Config, error) {
 
 		FrontendURL: strings.TrimSpace(
 			os.Getenv("FRONTEND_URL"),
+		),
+
+		LiveKitURL: strings.TrimSpace(
+			os.Getenv("LIVEKIT_URL"),
+		),
+
+		LiveKitAPIKey: strings.TrimSpace(
+			os.Getenv("LIVEKIT_API_KEY"),
+		),
+
+		LiveKitAPISecret: strings.TrimSpace(
+			os.Getenv("LIVEKIT_API_SECRET"),
 		),
 
 		CORSAllowedOrigins: getCSVEnv(

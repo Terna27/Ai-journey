@@ -25,6 +25,7 @@ interface LiveKitRemoteAudioTrack {
 
 interface LiveKitRoomLike {
   state: string
+  remoteParticipants: Map<string, unknown>
   connect(
     url: string,
     token: string,
@@ -82,6 +83,10 @@ type LiveRoomStateListener = (
   state: LiveRoomState,
 ) => void
 
+type ParticipantCountListener = (
+  count: number,
+) => void
+
 // LiveAudioRoom owns ONE LiveKit room connection bound to a
 // single <audio> element. The element is passed in by the
 // caller so the rest of the app keeps full control of audio
@@ -92,7 +97,13 @@ export class LiveAudioRoom {
   private listeners = new Set<
     LiveRoomStateListener
   >()
+
+  private participantCountListeners = new Set<
+    ParticipantCountListener
+  >()
+
   private currentState: LiveRoomState = 'idle'
+  private participantCount = 0
 
   constructor(
     audioElement: HTMLAudioElement,
@@ -111,6 +122,22 @@ export class LiveAudioRoom {
 
     return () => {
       this.listeners.delete(listener)
+    }
+  }
+
+  getParticipantCount(): number {
+    return this.participantCount
+  }
+
+  onParticipantCountChange(
+    listener: ParticipantCountListener,
+  ): () => void {
+    this.participantCountListeners.add(listener)
+
+    listener(this.participantCount)
+
+    return () => {
+      this.participantCountListeners.delete(listener)
     }
   }
 
@@ -152,6 +179,8 @@ export class LiveAudioRoom {
       )
 
       this.room = room
+
+      this.updateParticipantCount(room)
 
       if (publish) {
         await room.localParticipant
@@ -199,6 +228,7 @@ export class LiveAudioRoom {
       this.room = null
 
       this.detachAudio()
+      this.resetParticipantCount()
 
       this.setState('disconnected')
     }
@@ -208,6 +238,28 @@ export class LiveAudioRoom {
     roomEvent: Record<string, string>,
     room: LiveKitRoomLike,
   ): void {
+    const participantConnected =
+      roomEvent.ParticipantConnected ??
+      'participantConnected'
+
+    room.on(
+      participantConnected,
+      () => {
+        this.updateParticipantCount(room)
+      },
+    )
+
+    const participantDisconnected =
+      roomEvent.ParticipantDisconnected ??
+      'participantDisconnected'
+
+    room.on(
+      participantDisconnected,
+      () => {
+        this.updateParticipantCount(room)
+      },
+    )
+
     const subscribed =
       roomEvent.TrackSubscribed ??
       'trackSubscribed'
@@ -281,6 +333,33 @@ export class LiveAudioRoom {
         this.setState('disconnected')
       },
     )
+  }
+
+  private updateParticipantCount(
+    room: LiveKitRoomLike,
+  ): void {
+    const count =
+      room.remoteParticipants?.size ?? 0
+
+    this.participantCount = count
+
+    for (
+      const listener
+      of this.participantCountListeners
+    ) {
+      listener(count)
+    }
+  }
+
+  private resetParticipantCount(): void {
+    this.participantCount = 0
+
+    for (
+      const listener
+      of this.participantCountListeners
+    ) {
+      listener(0)
+    }
   }
 
   private detachAudio(): void {

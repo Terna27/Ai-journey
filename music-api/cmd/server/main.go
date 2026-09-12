@@ -123,6 +123,11 @@ func main() {
 			db.Pool,
 		)
 
+	podcastLiveRepo :=
+		repository.NewPodcastLiveRepository(
+			db.Pool,
+		)
+
 	// =========================
 	// SERVICES
 	// =========================
@@ -187,6 +192,24 @@ func main() {
 	podcastPlaybackService :=
 		services.NewPodcastPlaybackService(
 			podcastPlaybackRepo,
+		)
+
+	// LiveKit is OPTIONAL: when its env vars are unset the
+	// service simply reports itself unconfigured and the
+	// token endpoints return a controlled 503. Scheduling
+	// and state management work without a provider.
+	liveKitService :=
+		services.NewLiveKitService(
+			cfg.LiveKitURL,
+			cfg.LiveKitAPIKey,
+			cfg.LiveKitAPISecret,
+		)
+
+	podcastLiveService :=
+		services.NewPodcastLiveService(
+			podcastLiveRepo,
+			podcastRepo,
+			liveKitService,
 		)
 
 	jwtService :=
@@ -291,6 +314,12 @@ func main() {
 	podcastPlaybackHandler :=
 		handler.NewPodcastPlaybackHandler(
 			podcastPlaybackService,
+		)
+
+	podcastLiveHandler :=
+		handler.NewPodcastLiveHandler(
+			podcastLiveService,
+			jwtService,
 		)
 
 	healthHandler :=
@@ -1240,6 +1269,137 @@ func main() {
 				),
 			),
 		),
+	)
+
+	// =========================
+	// PODCAST LIVE (creator)
+	// =========================
+	//
+	// Any verified user owning a podcast can host. No artist
+	// role is required (unified user architecture).
+
+	mux.Handle(
+		"POST /api/v1/me/podcast-episodes/{id}/live/schedule",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.ScheduleLiveEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/me/podcast-episodes/{id}/live",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.GetLiveByEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/me/podcast-episodes/{id}/live/start",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.StartLiveEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/me/podcast-episodes/{id}/live/end",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.EndLiveEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/me/podcast-episodes/{id}/live/cancel",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.CancelLiveEpisode,
+				),
+			),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/podcast-live-sessions/{id}/host-token",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.GetHostToken,
+				),
+			),
+		),
+	)
+
+	// Recording/replay handoff: publishing the finished
+	// recording turns the ENDED episode into a normal
+	// on-demand episode. Owner confirmation is required, so
+	// this lives with the creator routes.
+	mux.Handle(
+		"POST /api/v1/me/podcast-live-sessions/{id}/publish-recording",
+		middleware.JWTAuth(
+			jwtService,
+			middleware.RequireVerifiedUser(
+				userRepo,
+				http.HandlerFunc(
+					podcastLiveHandler.PublishLiveRecording,
+				),
+			),
+		),
+	)
+
+	// =========================
+	// PODCAST LIVE (public)
+	// =========================
+	//
+	// Discovery and listener tokens work without an account.
+	// The listener-token route parses an optional Bearer
+	// header itself so signed-in users get stable identities
+	// while anonymous listeners stay fully anonymous.
+
+	mux.HandleFunc(
+		"POST /api/v1/podcast-live-sessions/{id}/listener-token",
+		podcastLiveHandler.GetListenerToken,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/podcast-live/upcoming",
+		podcastLiveHandler.ListUpcomingLive,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/podcast-live/current",
+		podcastLiveHandler.ListCurrentlyLive,
+	)
+
+	mux.HandleFunc(
+		"GET /api/v1/podcast-live/{id}",
+		podcastLiveHandler.GetPublicLive,
 	)
 
 	// =========================
