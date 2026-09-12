@@ -3,10 +3,15 @@ export type PodcastStatus =
   | 'PUBLISHED'
   | 'ARCHIVED'
 
+// Live statuses (SCHEDULED, LIVE, ENDED) are set only through
+// the live session endpoints — never through episode PATCH.
 export type PodcastEpisodeStatus =
   | 'DRAFT'
   | 'PUBLISHED'
   | 'ARCHIVED'
+  | 'SCHEDULED'
+  | 'LIVE'
+  | 'ENDED'
 
 export type PodcastEpisodeType =
   | 'FULL'

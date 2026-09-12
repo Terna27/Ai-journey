@@ -13,6 +13,8 @@ import {
 
 import { useAuth } from '../context/AuthContext'
 
+import PodcastLiveControlPanel from '../components/podcast/PodcastLiveControlPanel'
+
 import {
   createPodcastEpisode,
   deletePodcast,
@@ -1435,8 +1437,13 @@ function PodcastManagerPage() {
                       </div>
 
                       <div className="podcast-owner-actions">
-                        {episode.status !==
-                          'PUBLISHED' && (
+                        {/* Live-managed statuses (SCHEDULED,
+                            LIVE, ENDED) change only through
+                            the live control panel below. */}
+                        {(episode.status ===
+                          'DRAFT' ||
+                          episode.status ===
+                            'ARCHIVED') && (
                           <button
                             type="button"
                             className="release-publish-button"
@@ -1473,8 +1480,10 @@ function PodcastManagerPage() {
                           </button>
                         )}
 
-                        {episode.status !==
-                          'ARCHIVED' && (
+                        {(episode.status ===
+                          'DRAFT' ||
+                          episode.status ===
+                            'PUBLISHED') && (
                           <button
                             type="button"
                             className="release-secondary-button"
@@ -1507,6 +1516,20 @@ function PodcastManagerPage() {
                           Delete Episode
                         </button>
                       </div>
+
+                      {token ? (
+                        <PodcastLiveControlPanel
+                          episode={
+                            episode
+                          }
+                          token={
+                            token
+                          }
+                          onRefresh={
+                            refreshPodcast
+                          }
+                        />
+                      ) : null}
                     </div>
                   </article>
                 )

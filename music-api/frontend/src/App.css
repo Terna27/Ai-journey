@@ -7641,3 +7641,273 @@ a.secondary-button {
     width: 120px;
   }
 }
+
+
+/* =========================================================
+   LIVE PODCASTS (Phase 4.2)
+   ========================================================= */
+
+.live-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.live-status-live {
+  background: #e5484d;
+}
+
+.live-status-upcoming,
+.live-status-scheduled {
+  background: var(--primary);
+}
+
+.live-status-ended {
+  background: var(--surface-hover);
+  color: var(--muted);
+}
+
+.live-status-cancelled {
+  background: var(--surface-hover);
+  color: var(--muted);
+}
+
+.podcast-live-section {
+  margin: 26px 0;
+}
+
+.podcast-live-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+
+.podcast-live-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(220px, 1fr)
+  );
+  gap: 16px;
+}
+
+.podcast-live-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.podcast-live-card:hover,
+.podcast-live-card:focus-visible {
+  border-color: var(--primary);
+}
+
+.podcast-live-card-active {
+  border-color: rgba(229, 72, 77, 0.55);
+}
+
+.podcast-live-card-body h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.podcast-live-card-body p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.podcast-live-when {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.live-room-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.live-room-header {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.live-room-artwork {
+  width: 160px;
+  height: 160px;
+  flex-shrink: 0;
+}
+
+.live-room-info h2 {
+  margin: 6px 0 10px;
+  font-size: 24px;
+}
+
+.live-room-podcast {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.live-room-podcast a {
+  color: var(--primary-light);
+  text-decoration: none;
+}
+
+.live-room-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.live-room-schedule {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.live-room-description {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.live-room-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.live-room-controls audio {
+  width: 100%;
+}
+
+.live-room-page > audio {
+  display: block;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.live-room-connection {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.live-room-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.podcast-live-control {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.podcast-live-control-heading {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.podcast-live-control audio {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.podcast-live-control-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.podcast-live-schedule-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.podcast-live-schedule-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.podcast-live-schedule-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text);
+  color-scheme: dark;
+}
+
+.podcast-live-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.podcast-live-connection {
+  color: #e5484d;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.podcast-live-message {
+  margin: 10px 0 0;
+  color: #4ade80;
+  font-size: 13px;
+}
+
+.podcast-live-hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .live-room-header {
+    flex-direction: column;
+  }
+
+  .live-room-artwork {
+    width: 120px;
+    height: 120px;
+  }
+}

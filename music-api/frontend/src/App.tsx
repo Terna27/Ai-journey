@@ -11,6 +11,7 @@ import ArtistPage from './pages/ArtistPage'
 import DiscoverPage from './pages/DiscoverPage'
 import HomePage from './pages/HomePage'
 import LikedMusicPage from './pages/LikedMusicPage'
+import LiveRoomPage from './pages/LiveRoomPage'
 import LoginPage from './pages/LoginPage'
 import MyMusicPage from './pages/MyMusicPage'
 import MyPodcastsPage from './pages/MyPodcastsPage'
@@ -59,6 +60,12 @@ function App() {
         <Route
           path="/podcasts/:slug"
           element={<PodcastPage />}
+        />
+
+        {/* Public live room: no account required. */}
+        <Route
+          path="/live/:id"
+          element={<LiveRoomPage />}
         />
 
         <Route

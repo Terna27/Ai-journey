@@ -73,6 +73,12 @@ import type {
   UpdatePodcastPlaybackProgressInput,
 } from '../types/podcastPlayback'
 
+import type {
+  LiveAccessToken,
+  PodcastLiveBroadcast,
+  PodcastLiveDetails,
+} from '../types/podcastLive'
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
   'http://localhost:8080/api/v1'
@@ -1293,4 +1299,181 @@ export async function deletePodcastEpisode(
     },
   )
 }
+
+// -------------------------
+// Podcast live sessions
+// -------------------------
+
+export async function schedulePodcastLiveEpisode(
+  episodeID: number,
+  scheduledStartAt: string,
+  token: string,
+): Promise<PodcastLiveDetails> {
+  return request<PodcastLiveDetails>(
+    `/me/podcast-episodes/${episodeID}/live/schedule`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify({
+        scheduled_start_at:
+          scheduledStartAt,
+      }),
+    },
+  )
+}
+
+export async function getOwnedPodcastLive(
+  episodeID: number,
+  token: string,
+): Promise<PodcastLiveDetails> {
+  return request<PodcastLiveDetails>(
+    `/me/podcast-episodes/${episodeID}/live`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function startPodcastLive(
+  episodeID: number,
+  token: string,
+): Promise<PodcastLiveDetails> {
+  return request<PodcastLiveDetails>(
+    `/me/podcast-episodes/${episodeID}/live/start`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function endPodcastLive(
+  episodeID: number,
+  token: string,
+): Promise<PodcastLiveDetails> {
+  return request<PodcastLiveDetails>(
+    `/me/podcast-episodes/${episodeID}/live/end`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function cancelPodcastLive(
+  episodeID: number,
+  token: string,
+): Promise<PodcastLiveDetails> {
+  return request<PodcastLiveDetails>(
+    `/me/podcast-episodes/${episodeID}/live/cancel`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+// Publishes the finished recording of an ENDED live session
+// as the episode's regular audio (ENDED -> PUBLISHED).
+export async function publishPodcastLiveRecording(
+  sessionID: string,
+  token: string,
+): Promise<PodcastLiveDetails> {
+  return request<PodcastLiveDetails>(
+    `/me/podcast-live-sessions/${sessionID}/publish-recording`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+export async function getPodcastLiveHostToken(
+  sessionID: string,
+  token: string,
+): Promise<LiveAccessToken> {
+  return request<LiveAccessToken>(
+    `/podcast-live-sessions/${sessionID}/host-token`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    },
+  )
+}
+
+// Anonymous listening: token is optional. When present it
+// only stabilizes the listener identity server-side.
+export async function getPodcastLiveListenerToken(
+  sessionID: string,
+  token?: string,
+): Promise<LiveAccessToken> {
+  const headers: Record<
+    string,
+    string
+  > = {}
+
+  if (token) {
+    headers.Authorization =
+      `Bearer ${token}`
+  }
+
+  return request<LiveAccessToken>(
+    `/podcast-live-sessions/${sessionID}/listener-token`,
+    {
+      method: 'POST',
+      headers,
+    },
+  )
+}
+
+export async function getUpcomingPodcastLive(
+  limit = 20,
+  offset = 0,
+): Promise<PodcastLiveBroadcast[]> {
+  return request<PodcastLiveBroadcast[]>(
+    `/podcast-live/upcoming?limit=${limit}&offset=${offset}`,
+  )
+}
+
+export async function getCurrentPodcastLive(
+  limit = 20,
+  offset = 0,
+): Promise<PodcastLiveBroadcast[]> {
+  return request<PodcastLiveBroadcast[]>(
+    `/podcast-live/current?limit=${limit}&offset=${offset}`,
+  )
+}
+
+export async function getPodcastLive(
+  sessionID: string,
+): Promise<PodcastLiveBroadcast> {
+  return request<PodcastLiveBroadcast>(
+    `/podcast-live/${sessionID}`,
+  )
+}
+
 
